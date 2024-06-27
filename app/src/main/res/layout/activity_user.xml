@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFEBEE">
+
+    <!-- Верхняя панель -->
+    <View
+        android:id="@+id/topEmptyView"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"/>
+
+    <ImageView
+        android:id="@+id/ivTopIcon"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:src="@drawable/clean_icon"/>
+
+    <!-- Контент между верхней и нижней панелями -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/topEmptyView"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="16dp">
+
+        <!-- Изображение пользователя -->
+        <ImageView
+            android:id="@+id/user_image"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_marginBottom="16dp"
+            android:contentDescription="@string/user_pic"
+            android:src="@drawable/user_pic"
+            android:scaleType="centerCrop"
+            android:padding="8dp"/>
+
+        <!-- Ник пользователя -->
+        <TextView
+            android:id="@+id/user_nickname"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="User Nickname"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Номер телефона пользователя -->
+        <TextView
+            android:id="@+id/user_phone"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="User Phone Number"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Кнопки -->
+        <Button
+            android:id="@+id/add_friend_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/add_friend"
+            android:visibility="gone"/>
+
+        <Button
+            android:id="@+id/remove_friend_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/remove_friend"
+            android:visibility="gone"/>
+
+        <Button
+            android:id="@+id/view_location_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/view_location"
+            android:visibility="gone"/>
+    </LinearLayout>
+
+    <!-- Нижняя панель -->
+    <LinearLayout
+        android:id="@+id/bottomEmptyView"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:weightSum="3">
+
+        <ImageButton
+            android:id="@+id/friendsButton"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:src="@drawable/cfriends"
+            android:scaleType="fitCenter"/>
+
+        <ImageButton
+            android:id="@+id/homeButton"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:src="@drawable/home"
+            android:scaleType="fitCenter"/>
+
+        <ImageButton
+            android:id="@+id/settingsButton"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:src="@drawable/settings"
+            android:scaleType="fitCenter"/>
+    </LinearLayout>
+
+</RelativeLayout>

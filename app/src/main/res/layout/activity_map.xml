@@ -1,0 +1,76 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:background="#FFEBEE"
+    android:layout_height="match_parent">
+
+    <View
+        android:id="@+id/topEmptyView"
+        android:layout_width="match_parent"
+        android:layout_height="80dp" />
+
+    <ImageView
+        android:id="@+id/ivTopIcon"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:src="@drawable/clean_icon" />
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/map"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/ivTopIcon"
+        android:layout_above="@id/bottomEmptyView" />
+
+    <LinearLayout
+        android:id="@+id/bottomEmptyView"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:weightSum="3">
+
+        <ImageButton
+            android:id="@+id/friendsButton"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:src="@drawable/friends"
+            android:scaleType="fitCenter" />
+
+        <ImageButton
+            android:id="@+id/homeButton"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:src="@drawable/chome"
+            android:scaleType="fitCenter" />
+
+        <ImageButton
+            android:id="@+id/settingsButton"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:src="@drawable/settings"
+            android:scaleType="fitCenter" />
+    </LinearLayout>
+    <ImageButton
+        android:id="@+id/sosButton"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_above="@id/bottomEmptyView"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="25dp"
+        android:layout_marginBottom="35dp"
+        android:background="@drawable/rounded_button_background"
+        android:scaleType="fitCenter"
+        android:src="@drawable/sos" />
+
+</RelativeLayout>

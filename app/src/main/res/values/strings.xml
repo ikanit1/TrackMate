@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">TrackMate</string>
+    <string name="errMsg">missing</string>
+    <string name="login">Login</string>
+    <string name="register">Register</string>
+    <string name="nickname">Nickname</string>
+    <string name="password">Password</string>
+    <string name="email">Email</string>
+    <string name="back">Back</string>
+    <string name="phone">Phone Number</string>
+    <string name="user_pic">User Image</string>
+    <string name="add_friend">Add friend</string>
+    <string name="remove_friend">Remove friend</string>
+    <string name="view_location">View friend\'s location</string>
+</resources>
