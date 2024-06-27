@@ -12,7 +12,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/topEmptyView"
-        android:layout_above="@id/addButton"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp"
         android:background="@android:color/transparent"
@@ -74,6 +73,4 @@
         android:background="@drawable/rounded_button_background"
         android:scaleType="fitCenter"
         android:src="@drawable/add" />
-
-
 </RelativeLayout>

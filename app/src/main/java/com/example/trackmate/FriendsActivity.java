@@ -28,7 +28,7 @@ public class FriendsActivity extends AppCompatActivity {
     private FriendsRecyclerAdapter adapter;
     private DatabaseReference databaseReference;
     private FirebaseAuth auth;
-    private ArrayList<Users> friendsList;
+    private ArrayList<Object> items;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,12 +40,11 @@ public class FriendsActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        friendsList = new ArrayList<>();
-        adapter = new FriendsRecyclerAdapter(friendsList, this);
+        items = new ArrayList<>();
+        adapter = new FriendsRecyclerAdapter(items, this);
         recyclerView.setAdapter(adapter);
 
         adapter.setOnImageClick(new FriendsRecyclerAdapter.OnImageClick() {
-            @Override
             public void onImageClick(String nickName) {
                 // Переход к UserActivity при клике на изображение
                 Intent intent = new Intent(FriendsActivity.this, UserActivity.class);
@@ -80,16 +79,16 @@ public class FriendsActivity extends AppCompatActivity {
             }
         });
 
-        loadFriends();
+        loadFriendsAndRequests();
     }
 
-    private void loadFriends() {
+    private void loadFriendsAndRequests() {
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser != null) {
             String currentUserId = currentUser.getUid();
-            DatabaseReference currentUserRef = databaseReference.child(currentUserId).child("friends");
+            DatabaseReference currentUserRef = databaseReference.child(currentUserId);
 
-            currentUserRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            currentUserRef.child("friends").addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                     ArrayList<String> friendNicknames = new ArrayList<>();
@@ -109,6 +108,28 @@ public class FriendsActivity extends AppCompatActivity {
                     Toast.makeText(FriendsActivity.this, "Error loading friends", Toast.LENGTH_SHORT).show();
                 }
             });
+
+            currentUserRef.child("friendRequests").addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    ArrayList<FriendRequest> friendRequests = new ArrayList<>();
+                    if (dataSnapshot.exists()) {
+                        for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                            String nickname = snapshot.getValue(String.class);
+                            if (nickname != null) {
+                                friendRequests.add(new FriendRequest(nickname));
+                            }
+                        }
+                        items.addAll(friendRequests);
+                        adapter.notifyDataSetChanged();
+                    }
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {
+                    Toast.makeText(FriendsActivity.this, "Error loading friend requests", Toast.LENGTH_SHORT).show();
+                }
+            });
         }
     }
 
@@ -116,11 +137,10 @@ public class FriendsActivity extends AppCompatActivity {
         databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                friendsList.clear();
                 for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
                     Users user = snapshot.getValue(Users.class);
                     if (user != null && friendNicknames.contains(user.getNickname())) {
-                        friendsList.add(user);
+                        items.add(user);
                     }
                 }
                 adapter.notifyDataSetChanged();
@@ -134,9 +154,12 @@ public class FriendsActivity extends AppCompatActivity {
     }
 
     private String getPhoneByNickname(String nickname) {
-        for (Users user : friendsList) {
-            if (user.getNickname().equals(nickname)) {
-                return user.getPhone();
+        for (Object item : items) {
+            if (item instanceof Users) {
+                Users user = (Users) item;
+                if (user.getNickname().equals(nickname)) {
+                    return user.getPhone();
+                }
             }
         }
         return "";
