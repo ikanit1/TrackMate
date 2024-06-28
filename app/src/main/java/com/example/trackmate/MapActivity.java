@@ -1,18 +1,21 @@
 package com.example.trackmate;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Looper;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -42,7 +45,6 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.RemoteMessage;
 
@@ -135,7 +137,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         sosButton.setOnClickListener(v -> {
             showConfirmationDialog();
         });
-
     }
 
     private void showConfirmationDialog() {
@@ -234,7 +235,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         mMap = googleMap;
         mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
 
-        // Проверка разрешений на местоположение
+        // Check location permissions
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
@@ -243,157 +244,136 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             return;
         }
 
-        // Получение последнего известного местоположения пользователя
+        // Get the last known user location
         fusedLocationProviderClient.getLastLocation()
-                .addOnSuccessListener(this, location -> {
-                    Log.e(TAG, "onSuccess");
-                    if (location != null) {
-                        double latitude = location.getLatitude();
-                        double longitude = location.getLongitude();
-                        LatLng latLng = new LatLng(latitude, longitude);
-                        Global.myLoc = new UserLocation(String.valueOf(latitude), String.valueOf(longitude), Global.me.getNickname());
-                        Log.e("MAP", Global.myLoc.toString());
-                        refLocations = FirebaseDatabase.getInstance().getReference("Locations");
-                        refLocations.child(Global.me.getNickname()).setValue(Global.myLoc); // Используем ник текущего пользователя
-
-                        mMap.clear();
-                        currMarker = mMap.addMarker(new MarkerOptions()
-                                .position(latLng)
-                                .title(Global.me.getNickname()) // Устанавливаем ник пользователя в качестве заголовка маркера
-                                .icon(userIcon));
-                        currMarker.showInfoWindow();
-                        if (firstTimeZoom) {
-                            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
-                            firstTimeZoom = false;
+                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
+                    @Override
+                    public void onSuccess(Location location) {
+                        if (location != null) {
+                            LatLng userLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+                            currMarker = mMap.addMarker(new MarkerOptions()
+                                    .position(userLatLng)
+                                    .icon(userIcon));
+                            if (firstTimeZoom) {
+                                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 15));
+                                firstTimeZoom = false;
+                            }
                         }
-                        addFriendsMarkers();// Добавляем маркеры друзей на карту
-                        if (getIntent().hasExtra("friendNickname")) {
-                            String friendNickname = getIntent().getStringExtra("friendNickname");
-                            Toast.makeText(MapActivity.this, friendNickname + "go focus" , Toast.LENGTH_SHORT).show();
-                            focusOnFriendMarker(friendNickname);
-
-                        }
-                    } else {
-                        Toast.makeText(MapActivity.this, "Location not found", Toast.LENGTH_SHORT).show();
                     }
                 });
 
-        // Запрос обновлений местоположения пользователя
-        fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
-    }
+        // Update friends' markers
+        updateFriendsMarkers();
 
-    // Метод для фокусировки на маркере друга по его нику
-    private void focusOnFriendMarker(String friendNickname) {
-        for (Marker marker : friendsMarkers) {
-            if (marker.getTitle().equals(friendNickname)) {
-                Toast.makeText(MapActivity.this, "Focusing on marker: " + friendNickname, Toast.LENGTH_SHORT).show();
-                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(marker.getPosition(), 17));
-                marker.showInfoWindow(); // Показать информационное окно для маркера
-                return;
-            }
-        }
-        Toast.makeText(MapActivity.this, "No marker found for: " + friendNickname, Toast.LENGTH_SHORT).show();
-    }
-
-    private void loadProfilePicture(UserLocation userLoc, OnSuccessListener<MarkerOptions> onSuccessListener) {
-        DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("Users").child(userLoc.getUid());
-        userRef.child("profilePictureUrl").get().addOnSuccessListener(dataSnapshot -> {
-            String profilePictureUrl = dataSnapshot.getValue(String.class);
-            loadUserIcon(profilePictureUrl, bitmapDescriptor -> {
-                MarkerOptions markerOptions = new MarkerOptions()
-                        .position(userLoc.getLatLng())
-                        .title(userLoc.getNickName())
-                        .icon(bitmapDescriptor);
-                onSuccessListener.onSuccess(markerOptions);
-            });
-        });
-    }
-
-    // Метод для добавления маркеров друзей на карту
-    private void addFriendsMarkers() {
-        for (UserLocation userLoc : Global.myFriendsLocation) {
-            loadProfilePicture(userLoc, markerOptions -> {
-                Marker m = mMap.addMarker(markerOptions);
-                Objects.requireNonNull(m).showInfoWindow();
-                friendsMarkers.add(m);
-            });
+        // Check for friend focus from intent
+        Intent intent = getIntent();
+        String friendNickname = intent.getStringExtra("friendNickname");
+        if (friendNickname != null) {
+            focusOnFriendMarker(friendNickname);
         }
     }
 
-    // Метод для обновления маркеров друзей на карте
+
     private void updateFriendsMarkers() {
-        Iterator<Marker> iterator = friendsMarkers.iterator();
-        while (iterator.hasNext()) {
-            Marker marker = iterator.next();
-            marker.remove();
-            iterator.remove();
-        }
+        Log.e(TAG, "updateFriendsMarkers");
+        if (mMap != null) {
+            for (Marker marker : friendsMarkers) {
+                marker.remove();
+            }
+            friendsMarkers.clear();
 
-        for (UserLocation userLoc : Global.myFriendsLocation) {
-            loadProfilePicture(userLoc, markerOptions -> {
-                Marker m = mMap.addMarker(markerOptions);
-                Objects.requireNonNull(m).showInfoWindow();
-                friendsMarkers.add(m);
-            });
-        }
-    }
-
-    private void loadUserIcon(String imageUrl, OnSuccessListener<BitmapDescriptor> onSuccessListener) {
-        if (imageUrl != null && !imageUrl.isEmpty()) {
-            Glide.with(this)
-                    .asBitmap()
-                    .load(imageUrl)
-                    .into(new CustomTarget<Bitmap>(150, 150) {
-                        @Override
-                        public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
-                            Bitmap smallMarker = Bitmap.createScaledBitmap(resource, 150, 150, false);
-                            onSuccessListener.onSuccess(BitmapDescriptorFactory.fromBitmap(smallMarker));
-                        }
-
-                        @Override
-                        public void onLoadCleared(@Nullable Drawable placeholder) {
-                        }
-
-                        @Override
-                        public void onLoadFailed(@Nullable Drawable errorDrawable) {
-                            onSuccessListener.onSuccess(getDefaultUserIcon());
-                        }
-                    });
-        } else {
-            onSuccessListener.onSuccess(getDefaultUserIcon());
-        }
-    }
-
-    private BitmapDescriptor getDefaultUserIcon() {
-        Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.user_pic); // Default image
-        Bitmap smallMarker = Bitmap.createScaledBitmap(bitmap, 150, 150, false);
-        return BitmapDescriptorFactory.fromBitmap(smallMarker);
-    }
-
-    // Обработчик запроса разрешений на местоположение
-    @RequiresApi(api = Build.VERSION_CODES.S)
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                onMapReady(mMap);
-            } else {
-                Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show();
+            Iterator<UserLocation> iterator = Global.myFriendsLocation.iterator();
+            while (iterator.hasNext()) {
+                UserLocation userLocation = iterator.next();
+                Users friend = findUserByNickname(userLocation.getNickName());
+                if (friend != null) {
+                    LatLng friendLatLng = new LatLng(Double.parseDouble(userLocation.getLatitude()), Double.parseDouble(userLocation.getLongitude()));
+                    String profilePictureUrl = friend.getProfilePictureUrl();
+                    loadFriendIcon(profilePictureUrl, friendLatLng, userLocation.getNickName());
+                }
             }
         }
     }
+    private Bitmap resizeBitmap(Bitmap original, int width, int height) {
+        return Bitmap.createScaledBitmap(original, width, height, false);
+    }
 
 
-    private void removeFriend(String friendNickname) {
-        Iterator<UserLocation> iterator = Global.myFriendsLocation.iterator();
-        while (iterator.hasNext()) {
-            UserLocation userLoc = iterator.next();
-            if (userLoc.getNickName().equals(friendNickname)) {
-                iterator.remove();
+
+    private void focusOnFriendMarker(String friendNickname) {
+        Log.e(TAG, "focusOnFriendMarker: " + friendNickname);
+        for (Marker marker : friendsMarkers) {
+            if (Objects.equals(marker.getTitle(), friendNickname)) {
+                LatLng friendLocation = marker.getPosition();
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(friendLocation, 15));
                 break;
             }
         }
-        updateFriendsMarkers();
+    }
+
+    private void loadUserIcon(String url, final OnIconLoadedListener listener) {
+        Glide.with(this)
+                .asBitmap()
+                .load(url)
+                .circleCrop()
+                .into(new CustomTarget<Bitmap>() {
+                    @Override
+                    public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
+                        // Resize the bitmap to a smaller size, e.g., 100x100 pixels
+                        Bitmap resizedBitmap = resizeBitmap(resource, 100, 100);
+                        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(resizedBitmap);
+                        listener.onIconLoaded(icon);
+                    }
+
+                    @Override
+                    public void onLoadCleared(@Nullable Drawable placeholder) {
+                    }
+                });
+    }
+
+    private Bitmap createCustomMarker(Context context, Bitmap bitmap) {
+        View markerLayout = LayoutInflater.from(context).inflate(R.layout.marker_layout, null);
+        ImageView markerImage = markerLayout.findViewById(R.id.marker_image);
+        markerImage.setImageBitmap(bitmap);
+
+        // Measure and layout the view
+        markerLayout.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        markerLayout.layout(0, 0, markerLayout.getMeasuredWidth(), markerLayout.getMeasuredHeight());
+
+        // Create the bitmap
+        Bitmap returnedBitmap = Bitmap.createBitmap(markerLayout.getMeasuredWidth(), markerLayout.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(returnedBitmap);
+        markerLayout.draw(canvas);
+
+        return returnedBitmap;
+    }
+
+
+    private void loadFriendIcon(String url, final LatLng position, final String nickname) {
+        Glide.with(this)
+                .asBitmap()
+                .load(url)
+                .circleCrop()
+                .into(new CustomTarget<Bitmap>() {
+                    @Override
+                    public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
+                        Bitmap customMarkerBitmap = createCustomMarker(MapActivity.this, resource);
+                        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(customMarkerBitmap);
+                        Marker friendMarker = mMap.addMarker(new MarkerOptions()
+                                .position(position)
+                                .title(nickname)
+                                .icon(icon));
+                        friendsMarkers.add(friendMarker);
+                    }
+
+                    @Override
+                    public void onLoadCleared(@Nullable Drawable placeholder) {
+                    }
+                });
+    }
+
+
+    interface OnIconLoadedListener {
+        void onIconLoaded(BitmapDescriptor icon);
     }
 }
