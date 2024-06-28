@@ -111,9 +111,24 @@ public class SettingsActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
             imageUri = data.getData();
+
+            // Check the file size before proceeding
             try {
+                // Get the size of the file in bytes
+                long fileSizeInBytes = getContentResolver().openInputStream(imageUri).available();
+                // Convert bytes to megabytes (1 MB = 1048576 bytes)
+                long fileSizeInMB = fileSizeInBytes / 1048576;
+
+                // Check if file size exceeds 2 MB
+                if (fileSizeInMB > 2) {
+                    Toast.makeText(this, "Please select an image smaller than 2 MB", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                // Load the image into ImageView
                 Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), imageUri);
                 ivProfilePicture.setImageBitmap(bitmap);
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -203,7 +218,6 @@ public class SettingsActivity extends AppCompatActivity {
             });
         }
     }
-
 
     @Override
     public void onBackPressed() {

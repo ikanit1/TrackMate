@@ -100,10 +100,8 @@ public class FriendsActivity extends AppCompatActivity {
             currentUserRef.addValueEventListener(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                    // Clear the current list of friends
                     items.clear();
 
-                    // Iterate through the dataSnapshot to get friend nicknames
                     for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
                         String friendNickname = snapshot.getValue(String.class);
                         if (friendNickname != null) {
@@ -119,6 +117,7 @@ public class FriendsActivity extends AppCompatActivity {
             });
         }
     }
+
 
     private void fetchFriendDetails(String friendNickname) {
         databaseReference.child(friendNickname).addListenerForSingleValueEvent(new ValueEventListener() {
@@ -137,6 +136,7 @@ public class FriendsActivity extends AppCompatActivity {
             }
         });
     }
+
 
 
 

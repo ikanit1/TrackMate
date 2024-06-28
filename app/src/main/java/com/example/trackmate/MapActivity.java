@@ -297,6 +297,14 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     private Bitmap resizeBitmap(Bitmap original, int width, int height) {
         return Bitmap.createScaledBitmap(original, width, height, false);
     }
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        String friendNickname = intent.getStringExtra("friendNickname");
+        if (friendNickname != null) {
+            focusOnFriendMarker(friendNickname);
+        }
+    }
 
 
 

@@ -9,6 +9,16 @@
         android:layout_width="match_parent"
         android:layout_height="80dp" />
 
+    <TextView
+        android:id="@+id/tvFindFriends"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@id/topEmptyView"
+        android:text="Find Friends"
+        android:textSize="24sp"
+        android:textColor="@android:color/black"/>
+
     <ImageView
         android:id="@+id/ivTopIcon"
         android:layout_width="80dp"
@@ -16,8 +26,6 @@
         android:layout_alignParentEnd="true"
         android:layout_alignParentTop="true"
         android:src="@drawable/clean_icon" />
-
-
 
     <LinearLayout
         android:id="@+id/bottomEmptyView"
@@ -60,9 +68,9 @@
         android:id="@+id/etFriendPhone"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/topEmptyView"
+        android:layout_below="@id/tvFindFriends"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="1dp"
+        android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
         android:backgroundTint="@color/main"
         android:textColor="@color/black"
@@ -85,7 +93,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/searchButton"
-
         android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp"
         android:background="@android:color/transparent"

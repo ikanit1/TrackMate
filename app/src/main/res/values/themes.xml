@@ -5,5 +5,8 @@
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
     </style>
 
-    <style name="Theme.TrackMate" parent="Base.Theme.TrackMate" />
+    <style name="Theme.TrackMate" parent="Base.Theme.TrackMate">
+        <!-- Добавьте цвет статус-бара -->
+        <item name="colorPrimaryDark">@color/main</item>
+    </style>
 </resources>

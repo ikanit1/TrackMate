@@ -3,6 +3,20 @@
     android:background="#FFEBEE"
     android:layout_height="match_parent">
 
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Your Friends"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:padding="8dp"
+        android:layout_alignParentTop="true"
+        android:background="@android:color/white" />
+
+    <!-- Your existing layout content -->
+
     <View
         android:id="@+id/topEmptyView"
         android:layout_width="match_parent"
@@ -11,7 +25,7 @@
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/topEmptyView"
+        android:layout_below="@id/tvTitle"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp"
         android:background="@android:color/transparent"
@@ -72,10 +86,7 @@
         android:layout_marginBottom="16dp"
         android:background="@drawable/rounded_button_background"
         android:scaleType="fitCenter"
-        android:src="@drawable/invites">
-
-    </ImageButton>  <!-- Уменьшил отступ, чтобы не было такого большого пространства -->
-
+        android:src="@drawable/invites" />
 
     <ImageButton
         android:id="@+id/addButton"

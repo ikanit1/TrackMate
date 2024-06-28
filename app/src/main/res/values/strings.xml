@@ -12,4 +12,5 @@
     <string name="add_friend">Add friend</string>
     <string name="remove_friend">Remove friend</string>
     <string name="view_location">View friend\'s location</string>
+    <string name="profile_picture">profile</string>
 </resources>
