@@ -6,11 +6,17 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -43,11 +49,14 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.RemoteMessage;
 
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -246,57 +255,67 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
         // Get the last known user location
         fusedLocationProviderClient.getLastLocation()
-                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                    @Override
-                    public void onSuccess(Location location) {
-                        if (location != null) {
-                            LatLng userLatLng = new LatLng(location.getLatitude(), location.getLongitude());
-                            currMarker = mMap.addMarker(new MarkerOptions()
-                                    .position(userLatLng)
-                                    .icon(userIcon));
-                            if (firstTimeZoom) {
-                                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 15));
-                                firstTimeZoom = false;
-                            }
+                .addOnSuccessListener(this, location -> {
+                    if (location != null) {
+                        LatLng userLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+                        currMarker = mMap.addMarker(new MarkerOptions()
+                                .position(userLatLng)
+                                .title(Global.me.getNickname())
+                                .icon(userIcon));
+                        currMarker.showInfoWindow();
+                        if (firstTimeZoom) {
+                            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 15));
+                            firstTimeZoom = false;
                         }
+                        addFriendsMarkers(); // Добавляем маркеры друзей на карту
+                        if (getIntent().hasExtra("friendNickname")) {
+                            String friendNickname = getIntent().getStringExtra("friendNickname");
+                            focusOnFriendMarker(friendNickname);
+                        }
+                    } else {
+                        Toast.makeText(MapActivity.this, "Location not found", Toast.LENGTH_SHORT).show();
                     }
                 });
 
-        // Update friends' markers
-        updateFriendsMarkers();
-
-        // Check for friend focus from intent
-        Intent intent = getIntent();
-        String friendNickname = intent.getStringExtra("friendNickname");
-        if (friendNickname != null) {
-            focusOnFriendMarker(friendNickname);
-        }
+        // Request location updates
+        fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
     }
 
+    private void addFriendsMarkers() {
+        for (UserLocation userLoc : Global.myFriendsLocation) {
+            MarkerOptions mo = new MarkerOptions()
+                    .position(userLoc.getLatLng())
+                    .title(userLoc.getNickName())
+                    .icon(getUserIcon(userLoc.getNickName()));
+
+            Marker m = mMap.addMarker(mo);
+            Objects.requireNonNull(m).showInfoWindow();
+            friendsMarkers.add(m);
+        }
+    }
 
     private void updateFriendsMarkers() {
-        Log.e(TAG, "updateFriendsMarkers");
-        if (mMap != null) {
-            for (Marker marker : friendsMarkers) {
-                marker.remove();
-            }
-            friendsMarkers.clear();
+        for (Marker marker : friendsMarkers) {
+            marker.remove();
+        }
+        friendsMarkers.clear();
 
-            Iterator<UserLocation> iterator = Global.myFriendsLocation.iterator();
-            while (iterator.hasNext()) {
-                UserLocation userLocation = iterator.next();
-                Users friend = findUserByNickname(userLocation.getNickName());
-                if (friend != null) {
-                    LatLng friendLatLng = new LatLng(Double.parseDouble(userLocation.getLatitude()), Double.parseDouble(userLocation.getLongitude()));
-                    String profilePictureUrl = friend.getProfilePictureUrl();
-                    loadFriendIcon(profilePictureUrl, friendLatLng, userLocation.getNickName());
-                }
+        Iterator<UserLocation> iterator = Global.myFriendsLocation.iterator();
+        while (iterator.hasNext()) {
+            UserLocation userLocation = iterator.next();
+            Users friend = findUserByNickname(userLocation.getNickName());
+            if (friend != null) {
+                LatLng friendLatLng = new LatLng(Double.parseDouble(userLocation.getLatitude()), Double.parseDouble(userLocation.getLongitude()));
+                String profilePictureUrl = friend.getProfilePictureUrl();
+                loadFriendIcon(profilePictureUrl, friendLatLng, userLocation.getNickName());
             }
         }
     }
+
     private Bitmap resizeBitmap(Bitmap original, int width, int height) {
         return Bitmap.createScaledBitmap(original, width, height, false);
     }
+
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -305,8 +324,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             focusOnFriendMarker(friendNickname);
         }
     }
-
-
 
     private void focusOnFriendMarker(String friendNickname) {
         Log.e(TAG, "focusOnFriendMarker: " + friendNickname);
@@ -327,7 +344,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                 .into(new CustomTarget<Bitmap>() {
                     @Override
                     public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
-                        // Resize the bitmap to a smaller size, e.g., 100x100 pixels
                         Bitmap resizedBitmap = resizeBitmap(resource, 100, 100);
                         BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(resizedBitmap);
                         listener.onIconLoaded(icon);
@@ -344,18 +360,15 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         ImageView markerImage = markerLayout.findViewById(R.id.marker_image);
         markerImage.setImageBitmap(bitmap);
 
-        // Measure and layout the view
         markerLayout.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         markerLayout.layout(0, 0, markerLayout.getMeasuredWidth(), markerLayout.getMeasuredHeight());
 
-        // Create the bitmap
         Bitmap returnedBitmap = Bitmap.createBitmap(markerLayout.getMeasuredWidth(), markerLayout.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(returnedBitmap);
         markerLayout.draw(canvas);
 
         return returnedBitmap;
     }
-
 
     private void loadFriendIcon(String url, final LatLng position, final String nickname) {
         Glide.with(this)
@@ -380,6 +393,77 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                 });
     }
 
+    private BitmapDescriptor getUserIcon(String nickname) {
+        String iconUrl = Global.getUserIconUrl(nickname);
+        if (iconUrl != null && !iconUrl.isEmpty()) {
+            Bitmap bitmap = getBitmapFromURL(iconUrl);
+            if (bitmap != null) {
+                return BitmapDescriptorFactory.fromBitmap(getCircularBitmap(bitmap));
+            }
+        }
+        return userIcon;
+    }
+
+    private Bitmap getBitmapFromURL(String src) {
+        try {
+            URL url = new URL(src);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setDoInput(true);
+            connection.connect();
+            InputStream input = connection.getInputStream();
+            return BitmapFactory.decodeStream(input);
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading image from URL", e);
+            return null;
+        }
+    }
+
+    private Bitmap getCircularBitmap(Bitmap bitmap) {
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        int newSize = Math.min(width, height);
+
+        Bitmap output = Bitmap.createBitmap(newSize, newSize, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(output);
+
+        final int color = 0xff424242;
+        final Paint paint = new Paint();
+        final Rect rect = new Rect(0, 0, newSize, newSize);
+
+        paint.setAntiAlias(true);
+        canvas.drawARGB(0, 0, 0, 0);
+        paint.setColor(color);
+        canvas.drawCircle(newSize / 2, newSize / 2, newSize / 2, paint);
+        paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+        canvas.drawBitmap(bitmap, rect, rect, paint);
+
+        return output;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.S)
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                onMapReady(mMap);
+            } else {
+                Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void removeFriend(String friendNickname) {
+        Iterator<UserLocation> iterator = Global.myFriendsLocation.iterator();
+        while (iterator.hasNext()) {
+            UserLocation userLoc = iterator.next();
+            if (userLoc.getNickName().equals(friendNickname)) {
+                iterator.remove();
+                break;
+            }
+        }
+        updateFriendsMarkers();
+    }
 
     interface OnIconLoadedListener {
         void onIconLoaded(BitmapDescriptor icon);
