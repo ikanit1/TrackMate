@@ -115,9 +115,9 @@ public class FriendsActivity extends AppCompatActivity {
                     ArrayList<FriendRequest> friendRequests = new ArrayList<>();
                     if (dataSnapshot.exists()) {
                         for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                            String nickname = snapshot.getValue(String.class);
-                            if (nickname != null) {
-                                friendRequests.add(new FriendRequest(nickname));
+                            FriendRequest request = snapshot.getValue(FriendRequest.class);
+                            if (request != null) {
+                                friendRequests.add(request);
                             }
                         }
                         items.addAll(friendRequests);

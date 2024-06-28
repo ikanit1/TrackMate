@@ -13,11 +13,17 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.trackmate.FriendRequest;
 import com.example.trackmate.R;
 import com.example.trackmate.Users;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.List;
 
 public class FriendsRecyclerAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-
     private static final int TYPE_FRIEND = 0;
     private static final int TYPE_REQUEST = 1;
 
@@ -74,7 +80,6 @@ public class FriendsRecyclerAdapter extends RecyclerView.Adapter<RecyclerView.Vi
     }
 
     class FriendViewHolder extends RecyclerView.ViewHolder {
-
         TextView nameTextView;
 
         FriendViewHolder(@NonNull View itemView) {
@@ -97,7 +102,6 @@ public class FriendsRecyclerAdapter extends RecyclerView.Adapter<RecyclerView.Vi
     }
 
     class RequestViewHolder extends RecyclerView.ViewHolder {
-
         TextView nameTextView;
         Button acceptButton;
         Button declineButton;
@@ -111,16 +115,45 @@ public class FriendsRecyclerAdapter extends RecyclerView.Adapter<RecyclerView.Vi
 
         void bind(FriendRequest request) {
             nameTextView.setText(request.getNickname());
+
             acceptButton.setOnClickListener(v -> handleAccept(request));
             declineButton.setOnClickListener(v -> handleDecline(request));
         }
 
         private void handleAccept(FriendRequest request) {
-            // Handle accept logic
+            FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+            if (currentUser != null) {
+                DatabaseReference usersRef = FirebaseDatabase.getInstance().getReference().child("Users");
+                usersRef.child(currentUser.getUid()).child("friends").push().setValue(request.getSender());
+                usersRef.child(request.getSender()).child("friends").push().setValue(currentUser.getUid());
+                removeRequest(request);
+            }
         }
 
         private void handleDecline(FriendRequest request) {
-            // Handle decline logic
+            removeRequest(request);
+        }
+
+        private void removeRequest(FriendRequest request) {
+            FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+            if (currentUser != null) {
+                DatabaseReference requestsRef = FirebaseDatabase.getInstance().getReference().child("Users").child(currentUser.getUid()).child("friendRequests");
+                requestsRef.orderByChild("nickname").equalTo(request.getNickname()).addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                        for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                            snapshot.getRef().removeValue();
+                        }
+                        items.remove(request);
+                        notifyDataSetChanged();
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError databaseError) {
+                        // Обработка ошибки
+                    }
+                });
+            }
         }
     }
 }

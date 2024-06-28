@@ -1,7 +1,5 @@
 package com.example.trackmate;
 
-import android.provider.ContactsContract;
-
 import com.google.android.gms.maps.model.LatLng;
 
 public class UserLocation {
@@ -42,7 +40,9 @@ public class UserLocation {
         NickName = nickName;
     }
 
-    public LatLng getLatLng() { return new LatLng(Double.parseDouble(Latitude), Double.parseDouble(Longitude)); }
+    public LatLng getLatLng() {
+        return new LatLng(Double.parseDouble(Latitude), Double.parseDouble(Longitude));
+    }
 
     @Override
     public String toString() {

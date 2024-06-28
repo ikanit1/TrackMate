@@ -18,6 +18,7 @@ import android.widget.Toast;
 import com.example.trackmate.adapter.SearchUserRecyclerAdapter;
 import com.firebase.ui.database.FirebaseRecyclerOptions;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -100,7 +101,12 @@ public class SearchActivity extends AppCompatActivity implements SearchUserRecyc
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
                     recyclerView.setVisibility(View.VISIBLE);
-                    // Если нужно, здесь можно обработать результаты фильтрации
+                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                        Users user = snapshot.getValue(Users.class);
+                        if (user != null) {
+                            sendFriendRequest(user.getNickname());
+                        }
+                    }
                 } else {
                     recyclerView.setVisibility(View.GONE);
                     Log.d("SearchActivity", "No user found with this phone number");
@@ -122,6 +128,21 @@ public class SearchActivity extends AppCompatActivity implements SearchUserRecyc
         adapter.updateOptions(options);
 
         adapter.startListening();
+    }
+
+    private void sendFriendRequest(String nickname) {
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser != null) {
+            DatabaseReference requestsRef = FirebaseDatabase.getInstance().getReference().child("Users").child(nickname).child("friendRequests");
+            FriendRequest friendRequest = new FriendRequest(currentUser.getUid(), nickname);
+            requestsRef.push().setValue(friendRequest).addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    Toast.makeText(SearchActivity.this, "Friend request sent", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(SearchActivity.this, "Failed to send friend request", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
     }
 
     @Override
