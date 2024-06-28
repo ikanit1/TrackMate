@@ -3,8 +3,12 @@ package com.example.trackmate;
 import java.util.ArrayList;
 
 public class Users {
-
-    private String phone, email, password, nickname, fcmToken;
+    private String phone;
+    private String email;
+    private String password;
+    private String nickname;
+    private String fcmToken;
+    private String profilePictureUrl; // Add this field
     private ArrayList<String> friends;
 
     public Users() {
@@ -15,8 +19,19 @@ public class Users {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
-        this.friends = friends;
         this.fcmToken = fcmToken;
+        this.profilePictureUrl = ""; // Default value
+        this.friends = friends;
+    }
+
+    public Users(String phone, String email, String password, String nickname, ArrayList<String> friends, String fcmToken, String profilePictureUrl) {
+        this.phone = phone;
+        this.email = email;
+        this.password = password;
+        this.nickname = nickname;
+        this.fcmToken = fcmToken;
+        this.profilePictureUrl = profilePictureUrl; // Initialize this field
+        this.friends = friends;
     }
 
     public String getPhone() {
@@ -51,6 +66,22 @@ public class Users {
         this.nickname = nickname;
     }
 
+    public String getFcmToken() {
+        return fcmToken;
+    }
+
+    public void setFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
+    }
+
+    public String getProfilePictureUrl() { // Add this method
+        return profilePictureUrl;
+    }
+
+    public void setProfilePictureUrl(String profilePictureUrl) { // Add this method
+        this.profilePictureUrl = profilePictureUrl;
+    }
+
     public ArrayList<String> getFriends() {
         return friends;
     }
@@ -59,11 +90,20 @@ public class Users {
         this.friends = friends;
     }
 
-    public String getFcmToken() {
-        return fcmToken;
+    // Method to add a friend to the friends list
+    public void addFriend(String friendNickname) {
+        if (friends == null) {
+            friends = new ArrayList<>();
+        }
+        if (!friends.contains(friendNickname)) {
+            friends.add(friendNickname);
+        }
     }
 
-    public void setFcmToken(String fcmToken) {
-        this.fcmToken = fcmToken;
+    // Method to remove a friend from the friends list
+    public void removeFriend(String friendNickname) {
+        if (friends != null) {
+            friends.remove(friendNickname);
+        }
     }
 }

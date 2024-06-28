@@ -137,6 +137,11 @@ public class SettingsActivity extends AppCompatActivity {
                             String profilePictureUrl = uri.toString();
                             refMe.child("profilePictureUrl").setValue(profilePictureUrl);
                             Toast.makeText(SettingsActivity.this, "Profile picture updated", Toast.LENGTH_SHORT).show();
+
+                            // Broadcast the updated profile picture URL
+                            Intent intent = new Intent("com.example.trackmate.PROFILE_PICTURE_UPDATED");
+                            intent.putExtra("profilePictureUrl", profilePictureUrl);
+                            sendBroadcast(intent);
                         }
                     });
                 }
@@ -198,6 +203,7 @@ public class SettingsActivity extends AppCompatActivity {
             });
         }
     }
+
 
     @Override
     public void onBackPressed() {

@@ -6,6 +6,7 @@ public class UserLocation {
     private String Latitude;
     private String Longitude;
     private String NickName;
+    private String uid;
 
     public UserLocation() {
     }
@@ -51,5 +52,13 @@ public class UserLocation {
                 ", Longitude='" + Longitude + '\'' +
                 ", Nickname='" + NickName + '\'' +
                 '}';
+    }
+
+    public String getUid() {  // Add this method
+        return uid;
+    }
+
+    public void setUid(String uid) {  // Add this method
+        this.uid = uid;
     }
 }

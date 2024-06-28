@@ -236,7 +236,6 @@ public class UserActivity extends AppCompatActivity {
             Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show();
         }
     }
-
     // Метод для поиска местоположения пользователя по его нику
     private UserLocation findUserLocationByNickname(String nickname) {
         for (UserLocation userLoc : Global.allLocations) {

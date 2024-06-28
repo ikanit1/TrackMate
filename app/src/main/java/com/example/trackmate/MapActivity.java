@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
@@ -16,11 +17,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.target.CustomTarget;
+import com.bumptech.glide.request.transition.Transition;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -35,6 +40,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -109,7 +115,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         }
 
         // Загружаем маленькую иконку пользователя
-        userIcon = getSmallUserIcon();
+        String profilePictureUrl = Global.me.getProfilePictureUrl();
+        loadUserIcon(profilePictureUrl, bitmapDescriptor -> userIcon = bitmapDescriptor);
 
         // Обработчики кнопок
         ImageButton friendsButton = findViewById(R.id.friendsButton);
@@ -130,6 +137,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         });
 
     }
+
     private void showConfirmationDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage("Are you sure you want to send your location to all friends?");
@@ -150,6 +158,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         AlertDialog dialog = builder.create();
         dialog.show();
     }
+
     private Users findUserByNickname(String nickname) {
         for (Users user : Global.allUsers) {
             if (user.getNickname().equals(nickname)) {
@@ -158,6 +167,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         }
         return null;
     }
+
     private void sendLocationNotification() {
         LatLng myLocation = new LatLng(Double.parseDouble(Global.myLoc.getLatitude()), Double.parseDouble(Global.myLoc.getLongitude()));
 
@@ -198,10 +208,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         FirebaseMessaging.getInstance().send(message);
         Log.d(TAG, "Notification sent to friend with token: " + fcmToken);
     }
-
-
-
-
 
     @Override
     protected void onResume() {
@@ -289,23 +295,33 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         Toast.makeText(MapActivity.this, "No marker found for: " + friendNickname, Toast.LENGTH_SHORT).show();
     }
 
+    private void loadProfilePicture(UserLocation userLoc, OnSuccessListener<MarkerOptions> onSuccessListener) {
+        DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("Users").child(userLoc.getUid());
+        userRef.child("profilePictureUrl").get().addOnSuccessListener(dataSnapshot -> {
+            String profilePictureUrl = dataSnapshot.getValue(String.class);
+            loadUserIcon(profilePictureUrl, bitmapDescriptor -> {
+                MarkerOptions markerOptions = new MarkerOptions()
+                        .position(userLoc.getLatLng())
+                        .title(userLoc.getNickName())
+                        .icon(bitmapDescriptor);
+                onSuccessListener.onSuccess(markerOptions);
+            });
+        });
+    }
+
     // Метод для добавления маркеров друзей на карту
     private void addFriendsMarkers() {
         for (UserLocation userLoc : Global.myFriendsLocation) {
-            MarkerOptions mo = new MarkerOptions()
-                    .position(userLoc.getLatLng())
-                    .title(userLoc.getNickName()) // Устанавливаем ник друга в качестве заголовка маркера
-                    .icon(userIcon); // Используем маленькую иконку пользователя
-
-            Marker m = mMap.addMarker(mo);
-            Objects.requireNonNull(m).showInfoWindow();
-            friendsMarkers.add(m);
+            loadProfilePicture(userLoc, markerOptions -> {
+                Marker m = mMap.addMarker(markerOptions);
+                Objects.requireNonNull(m).showInfoWindow();
+                friendsMarkers.add(m);
+            });
         }
     }
 
     // Метод для обновления маркеров друзей на карте
     private void updateFriendsMarkers() {
-        // Удаляем все существующие маркеры друзей с карты
         Iterator<Marker> iterator = friendsMarkers.iterator();
         while (iterator.hasNext()) {
             Marker marker = iterator.next();
@@ -313,27 +329,45 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             iterator.remove();
         }
 
-        // Добавляем обновленные маркеры друзей на карту
         for (UserLocation userLoc : Global.myFriendsLocation) {
-            MarkerOptions mo = new MarkerOptions()
-                    .position(userLoc.getLatLng())
-                    .title(userLoc.getNickName())
-                    .icon(userIcon);
-
-            Marker m = mMap.addMarker(mo);
-            Objects.requireNonNull(m).showInfoWindow();
-            friendsMarkers.add(m);
+            loadProfilePicture(userLoc, markerOptions -> {
+                Marker m = mMap.addMarker(markerOptions);
+                Objects.requireNonNull(m).showInfoWindow();
+                friendsMarkers.add(m);
+            });
         }
     }
 
-    private BitmapDescriptor getSmallUserIcon() {
-        Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.user_pic); // Загружаем изображение
-        int width = bitmap.getWidth();
-        int height = bitmap.getHeight();
-        int newWidth = 150;
-        int newHeight = 150;
-        Bitmap smallMarker = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, false); // Создаем уменьшенное изображение
-        return BitmapDescriptorFactory.fromBitmap(smallMarker); // Создаем BitmapDescriptor из уменьшенного изображения
+    private void loadUserIcon(String imageUrl, OnSuccessListener<BitmapDescriptor> onSuccessListener) {
+        if (imageUrl != null && !imageUrl.isEmpty()) {
+            Glide.with(this)
+                    .asBitmap()
+                    .load(imageUrl)
+                    .into(new CustomTarget<Bitmap>(150, 150) {
+                        @Override
+                        public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
+                            Bitmap smallMarker = Bitmap.createScaledBitmap(resource, 150, 150, false);
+                            onSuccessListener.onSuccess(BitmapDescriptorFactory.fromBitmap(smallMarker));
+                        }
+
+                        @Override
+                        public void onLoadCleared(@Nullable Drawable placeholder) {
+                        }
+
+                        @Override
+                        public void onLoadFailed(@Nullable Drawable errorDrawable) {
+                            onSuccessListener.onSuccess(getDefaultUserIcon());
+                        }
+                    });
+        } else {
+            onSuccessListener.onSuccess(getDefaultUserIcon());
+        }
+    }
+
+    private BitmapDescriptor getDefaultUserIcon() {
+        Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.user_pic); // Default image
+        Bitmap smallMarker = Bitmap.createScaledBitmap(bitmap, 150, 150, false);
+        return BitmapDescriptorFactory.fromBitmap(smallMarker);
     }
 
     // Обработчик запроса разрешений на местоположение
@@ -363,5 +397,3 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         updateFriendsMarkers();
     }
 }
-
-

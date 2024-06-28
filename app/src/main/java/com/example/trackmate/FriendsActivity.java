@@ -43,6 +43,7 @@ public class FriendsActivity extends AppCompatActivity {
         items = new ArrayList<>();
         adapter = new FriendsRecyclerAdapter(items, this);
         recyclerView.setAdapter(adapter);
+        setupFriendListListener();
 
         adapter.setOnImageClick(new FriendsRecyclerAdapter.OnImageClick() {
             public void onImageClick(String nickName) {
@@ -89,6 +90,55 @@ public class FriendsActivity extends AppCompatActivity {
 
         loadFriendsAndRequests();
     }
+    // В FriendsActivity добавить слушатель изменений в базе данных Firebase для обновления списка друзей
+    private void setupFriendListListener() {
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser != null) {
+            String currentUserId = currentUser.getUid();
+            DatabaseReference currentUserRef = databaseReference.child(currentUserId).child("friends");
+
+            currentUserRef.addValueEventListener(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    // Clear the current list of friends
+                    items.clear();
+
+                    // Iterate through the dataSnapshot to get friend nicknames
+                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                        String friendNickname = snapshot.getValue(String.class);
+                        if (friendNickname != null) {
+                            fetchFriendDetails(friendNickname);
+                        }
+                    }
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {
+                    Toast.makeText(FriendsActivity.this, "Error loading friends", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
+
+    private void fetchFriendDetails(String friendNickname) {
+        databaseReference.child(friendNickname).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                Users user = dataSnapshot.getValue(Users.class);
+                if (user != null) {
+                    items.add(user);
+                    adapter.notifyDataSetChanged();
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Toast.makeText(FriendsActivity.this, "Error fetching friend details", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+
 
     private void loadFriendsAndRequests() {
         FirebaseUser currentUser = auth.getCurrentUser();
