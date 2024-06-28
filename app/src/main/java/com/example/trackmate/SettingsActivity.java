@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnFailureListener;
@@ -24,6 +25,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+import com.squareup.picasso.Picasso;
 
 import java.io.IOException;
 
@@ -33,6 +35,7 @@ public class SettingsActivity extends AppCompatActivity {
     private ImageView ivProfilePicture;
     private Uri imageUri;
     private EditText etNickname, etCurrentPassword, etNewPassword;
+    private TextView tvUserName, tvPhoneNumber;
     private FirebaseAuth auth;
     private DatabaseReference refMe;
     private DatabaseReference refUserLocation;
@@ -47,13 +50,30 @@ public class SettingsActivity extends AppCompatActivity {
         etNickname = findViewById(R.id.etNickname);
         etCurrentPassword = findViewById(R.id.etCurrentPassword);
         etNewPassword = findViewById(R.id.etNewPassword);
+        tvUserName = findViewById(R.id.tvUserName);
+        tvPhoneNumber = findViewById(R.id.tvPhoneNumber);
         Button btnChangePicture = findViewById(R.id.btnChangePicture);
         Button btnSaveChanges = findViewById(R.id.btnSaveChanges);
+        Button btnLogout = findViewById(R.id.btnLogout);
 
         auth = FirebaseAuth.getInstance();
         storageRef = FirebaseStorage.getInstance().getReference();
-        refMe = FirebaseDatabase.getInstance().getReference("Users").child(auth.getCurrentUser().getUid());
-        refUserLocation = FirebaseDatabase.getInstance().getReference("UserLocations").child(auth.getCurrentUser().getUid());
+        FirebaseUser currentUser = auth.getCurrentUser();
+        refMe = FirebaseDatabase.getInstance().getReference("Users").child(currentUser.getUid());
+        refUserLocation = FirebaseDatabase.getInstance().getReference("UserLocations").child(currentUser.getUid());
+
+        if (currentUser != null) {
+            tvUserName.setText(currentUser.getDisplayName());
+            tvPhoneNumber.setText(currentUser.getPhoneNumber());
+
+            // Load the profile picture from Firebase Storage
+            refMe.child("profilePictureUrl").get().addOnSuccessListener(dataSnapshot -> {
+                String profilePictureUrl = dataSnapshot.getValue(String.class);
+                if (profilePictureUrl != null && !profilePictureUrl.isEmpty()) {
+                    Picasso.get().load(profilePictureUrl).into(ivProfilePicture);
+                }
+            });
+        }
 
         btnChangePicture.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -66,6 +86,15 @@ public class SettingsActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 updateProfile();
+            }
+        });
+
+        btnLogout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                auth.signOut();
+                startActivity(new Intent(SettingsActivity.this, MainActivity.class));
+                finish();
             }
         });
     }
@@ -102,7 +131,14 @@ public class SettingsActivity extends AppCompatActivity {
             fileReference.putFile(imageUri).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
                 @Override
                 public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                    Toast.makeText(SettingsActivity.this, "Profile picture updated", Toast.LENGTH_SHORT).show();
+                    fileReference.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                        @Override
+                        public void onSuccess(Uri uri) {
+                            String profilePictureUrl = uri.toString();
+                            refMe.child("profilePictureUrl").setValue(profilePictureUrl);
+                            Toast.makeText(SettingsActivity.this, "Profile picture updated", Toast.LENGTH_SHORT).show();
+                        }
+                    });
                 }
             }).addOnFailureListener(new OnFailureListener() {
                 @Override

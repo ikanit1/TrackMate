@@ -1,4 +1,3 @@
-<!-- res/layout/activity_settings.xml -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -23,40 +22,67 @@
         android:backgroundTint="@color/main"
         android:text="Change Picture" />
 
+    <TextView
+        android:id="@+id/tvUserName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btnChangePicture"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:textColor="@color/black"
+        android:textColorHint="@color/black"
+        android:textSize="18sp"
+        android:text="User Name" />
+
+    <TextView
+        android:id="@+id/tvPhoneNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tvUserName"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="8dp"
+        android:textColor="@color/black"
+        android:textColorHint="@color/black"
+        android:textSize="18sp"
+        android:text="Phone Number" />
+
     <EditText
         android:id="@+id/etNickname"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/btnChangePicture"
-        android:textColorHint="@color/black"
-        android:textColor="@color/black"
+        android:layout_below="@id/tvPhoneNumber"
         android:layout_marginTop="16dp"
         android:backgroundTint="@color/main"
-        android:hint="Enter new nickname" />
+        android:hint="Enter new nickname"
+        android:minHeight="48dp"
+        android:textColor="@color/black"
+        android:textColorHint="@color/black" />
 
     <EditText
         android:id="@+id/etCurrentPassword"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/etNickname"
-        android:textColorHint="@color/black"
-        android:textColor="@color/black"
         android:layout_marginTop="16dp"
         android:backgroundTint="@color/main"
         android:hint="Enter current password"
-        android:inputType="textPassword" />
+        android:inputType="textPassword"
+        android:minHeight="48dp"
+        android:textColor="@color/black"
+        android:textColorHint="@color/black" />
 
     <EditText
         android:id="@+id/etNewPassword"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColorHint="@color/black"
-        android:textColor="@color/black"
         android:layout_below="@id/etCurrentPassword"
         android:layout_marginTop="16dp"
         android:backgroundTint="@color/main"
         android:hint="Enter new password"
-        android:inputType="textPassword" />
+        android:inputType="textPassword"
+        android:minHeight="48dp"
+        android:textColor="@color/black"
+        android:textColorHint="@color/black" />
 
     <Button
         android:id="@+id/btnSaveChanges"
@@ -67,4 +93,14 @@
         android:textColor="@color/white"
         android:backgroundTint="@color/main"
         android:text="Save Changes" />
+
+    <Button
+        android:id="@+id/btnLogout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btnSaveChanges"
+        android:layout_marginTop="16dp"
+        android:textColor="@color/white"
+        android:backgroundTint="@color/main"
+        android:text="Logout" />
 </RelativeLayout>

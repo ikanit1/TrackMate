@@ -62,8 +62,11 @@
         android:layout_height="wrap_content"
         android:layout_below="@id/topEmptyView"
         android:layout_marginStart="16dp"
+        android:layout_marginTop="1dp"
         android:layout_marginEnd="16dp"
         android:backgroundTint="@color/main"
+        android:textColor="@color/black"
+        android:textColorHint="@color/black"
         android:hint="Enter friend's phone number"
         android:inputType="phone" />
 
