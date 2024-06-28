@@ -63,12 +63,27 @@
     </LinearLayout>
 
     <ImageButton
+        android:id="@+id/invitationsButton"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_above="@id/addButton"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="25dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/rounded_button_background"
+        android:scaleType="fitCenter"
+        android:src="@drawable/invites">
+
+    </ImageButton>  <!-- Уменьшил отступ, чтобы не было такого большого пространства -->
+
+
+    <ImageButton
         android:id="@+id/addButton"
         android:layout_width="50dp"
         android:layout_height="50dp"
         android:layout_above="@id/bottomEmptyView"
         android:layout_alignParentEnd="true"
-        android:layout_marginEnd="25dp"
+        android:layout_marginEnd="24dp"
         android:layout_marginBottom="35dp"
         android:background="@drawable/rounded_button_background"
         android:scaleType="fitCenter"

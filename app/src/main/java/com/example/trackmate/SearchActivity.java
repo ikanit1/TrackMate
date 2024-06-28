@@ -18,7 +18,6 @@ import android.widget.Toast;
 import com.example.trackmate.adapter.SearchUserRecyclerAdapter;
 import com.firebase.ui.database.FirebaseRecyclerOptions;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -40,13 +39,11 @@ public class SearchActivity extends AppCompatActivity implements SearchUserRecyc
 
         auth = FirebaseAuth.getInstance();
 
+        // Обработка нажатий на кнопки навигации
         ImageButton homeButton = findViewById(R.id.homeButton);
-        homeButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(SearchActivity.this, MapActivity.class);
-                startActivity(intent);
-            }
+        homeButton.setOnClickListener(v -> {
+            Intent intent = new Intent(SearchActivity.this, MapActivity.class);
+            startActivity(intent);
         });
         ImageButton friendsButton = findViewById(R.id.friendsButton);
         friendsButton.setOnClickListener(v -> {
@@ -55,12 +52,9 @@ public class SearchActivity extends AppCompatActivity implements SearchUserRecyc
             finish();
         });
         ImageButton settingsButton = findViewById(R.id.settingsButton);
-        settingsButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(SearchActivity.this, SettingsActivity.class);
-                startActivity(intent);
-            }
+        settingsButton.setOnClickListener(v -> {
+            Intent intent = new Intent(SearchActivity.this, SettingsActivity.class);
+            startActivity(intent);
         });
 
         databaseReference = FirebaseDatabase.getInstance().getReference().child("Users");
@@ -80,19 +74,20 @@ public class SearchActivity extends AppCompatActivity implements SearchUserRecyc
         recyclerView.setAdapter(adapter);
         recyclerView.setVisibility(View.GONE);
 
-        searchButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String phoneNumber = etFriendPhone.getText().toString().trim();
-                Log.d("SearchActivity", "Search button clicked with text: " + phoneNumber);
-                filter(phoneNumber);
+        searchButton.setOnClickListener(v -> {
+            String phoneNumber = etFriendPhone.getText().toString().trim();
+            Log.d("SearchActivity", "Search button clicked with text: " + phoneNumber);
+            filter(phoneNumber);
 
-                InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            // Скрыть клавиатуру после поиска
+            InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (getCurrentFocus() != null) {
                 inputMethodManager.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
             }
         });
     }
 
+    // Метод для фильтрации пользователей по номеру телефона
     private void filter(String text) {
         adapter.stopListening();
 
@@ -101,12 +96,6 @@ public class SearchActivity extends AppCompatActivity implements SearchUserRecyc
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
                     recyclerView.setVisibility(View.VISIBLE);
-                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                        Users user = snapshot.getValue(Users.class);
-                        if (user != null) {
-                            sendFriendRequest(user.getNickname());
-                        }
-                    }
                 } else {
                     recyclerView.setVisibility(View.GONE);
                     Log.d("SearchActivity", "No user found with this phone number");
@@ -128,21 +117,6 @@ public class SearchActivity extends AppCompatActivity implements SearchUserRecyc
         adapter.updateOptions(options);
 
         adapter.startListening();
-    }
-
-    private void sendFriendRequest(String nickname) {
-        FirebaseUser currentUser = auth.getCurrentUser();
-        if (currentUser != null) {
-            DatabaseReference requestsRef = FirebaseDatabase.getInstance().getReference().child("Users").child(nickname).child("friendRequests");
-            FriendRequest friendRequest = new FriendRequest(currentUser.getUid(), nickname);
-            requestsRef.push().setValue(friendRequest).addOnCompleteListener(task -> {
-                if (task.isSuccessful()) {
-                    Toast.makeText(SearchActivity.this, "Friend request sent", Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(SearchActivity.this, "Failed to send friend request", Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
     }
 
     @Override

@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
 import android.widget.ImageButton;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -64,6 +65,16 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
+        // Инициализация TextView
+        TextView welcomeMessage = findViewById(R.id.tvWelcomeMessage);
+
+        // Установка приветственного сообщения
+        if (Global.me != null) {
+            String welcomeText = "Welcome, " + Global.me.getNickname() + "!";
+            welcomeMessage.setText(welcomeText);
+        }
+
+        // Остальная инициализация
         Log.e(TAG, "onCreate");
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
         locationRequest = new LocationRequest.Builder(200)
@@ -352,3 +363,5 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         updateFriendsMarkers();
     }
 }
+
+

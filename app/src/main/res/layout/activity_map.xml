@@ -8,6 +8,21 @@
         android:id="@+id/topEmptyView"
         android:layout_width="match_parent"
         android:layout_height="80dp" />
+    <TextView
+        android:id="@+id/tvWelcomeMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:layout_marginStart="16dp"
+        android:textSize="18sp"
+        android:textColor="#000000"
+        android:background="@android:color/white"
+        android:padding="8dp"
+        android:elevation="4dp"
+        tools:text="Welcome, User!"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentLeft="true"/>
 
     <ImageView
         android:id="@+id/ivTopIcon"
@@ -73,5 +88,6 @@
         android:background="@drawable/rounded_button_background"
         android:scaleType="fitCenter"
         android:src="@drawable/sos" />
+
 
 </RelativeLayout>

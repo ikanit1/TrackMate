@@ -103,21 +103,14 @@ public class FriendsRecyclerAdapter extends RecyclerView.Adapter<RecyclerView.Vi
 
     class RequestViewHolder extends RecyclerView.ViewHolder {
         TextView nameTextView;
-        Button acceptButton;
-        Button declineButton;
 
         RequestViewHolder(@NonNull View itemView) {
             super(itemView);
             nameTextView = itemView.findViewById(R.id.nameTextView);
-            acceptButton = itemView.findViewById(R.id.acceptButton);
-            declineButton = itemView.findViewById(R.id.declineButton);
         }
 
         void bind(FriendRequest request) {
             nameTextView.setText(request.getNickname());
-
-            acceptButton.setOnClickListener(v -> handleAccept(request));
-            declineButton.setOnClickListener(v -> handleDecline(request));
         }
 
         private void handleAccept(FriendRequest request) {

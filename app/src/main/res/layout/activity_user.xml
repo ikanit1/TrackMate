@@ -64,6 +64,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:text="@string/add_friend"
+            android:backgroundTint="@color/main"
             android:visibility="gone"/>
 
         <Button
@@ -72,6 +73,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:text="@string/remove_friend"
+            android:backgroundTint="@color/main"
             android:visibility="gone"/>
 
         <Button
@@ -79,6 +81,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/view_location"
+            android:backgroundTint="@color/main"
             android:visibility="gone"/>
     </LinearLayout>
 

@@ -62,6 +62,14 @@ public class FriendsActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
+        ImageButton invitationsButton = findViewById(R.id.invitationsButton);
+        invitationsButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(FriendsActivity.this, InvitationsActivity.class);
+                startActivity(intent);
+            }
+        });
         ImageButton addButton = findViewById(R.id.addButton);
         addButton.setOnClickListener(new View.OnClickListener() {
             @Override
