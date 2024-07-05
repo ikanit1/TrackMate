@@ -61,14 +61,19 @@ public class SettingsActivity extends AppCompatActivity {
         refLocations = FirebaseDatabase.getInstance().getReference("Locations");
 
         if (currentUser != null) {
-            tvUserName.setText(currentUser.getDisplayName());
+            // Retrieve and set the phone number
             tvPhoneNumber.setText(currentUser.getPhoneNumber());
 
-            // Load the profile picture from Firebase Storage
-            refMe.child("profilePictureUrl").get().addOnSuccessListener(dataSnapshot -> {
-                String profilePictureUrl = dataSnapshot.getValue(String.class);
-                if (profilePictureUrl != null && !profilePictureUrl.isEmpty()) {
-                    Picasso.get().load(profilePictureUrl).into(ivProfilePicture);
+            // Load user details from the database
+            refMe.get().addOnSuccessListener(dataSnapshot -> {
+                Users user = dataSnapshot.getValue(Users.class);
+                if (user != null) {
+                    tvUserName.setText(user.getNickname());
+                    tvPhoneNumber.setText(user.getPhone());
+                    String profilePictureUrl = user.getProfilePictureUrl();
+                    if (profilePictureUrl != null && !profilePictureUrl.isEmpty()) {
+                        Picasso.get().load(profilePictureUrl).into(ivProfilePicture);
+                    }
                 }
             });
         }
@@ -83,6 +88,7 @@ public class SettingsActivity extends AppCompatActivity {
             finish();
         });
     }
+
 
     private void openFileChooser() {
         Intent intent = new Intent();

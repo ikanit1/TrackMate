@@ -32,6 +32,7 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.target.CustomTarget;
@@ -51,6 +52,9 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -82,6 +86,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     private Handler handler;
     private Runnable mapUpdateRunnable;
     private StorageReference storageRef;
+    private LocationViewModel locationViewModel;
 
     @RequiresApi(api = Build.VERSION_CODES.S)
     @Override
@@ -92,6 +97,41 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         Log.e(TAG, "onCreate");
 
         // Set welcome message
+        locationViewModel = new ViewModelProvider(this).get(LocationViewModel.class);
+        // Add Firebase listeners for location and nickname changes
+        DatabaseReference locationsRef = FirebaseDatabase.getInstance().getReference("Locations");
+        locationsRef.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                UserLocation userLocation = snapshot.getValue(UserLocation.class);
+                if (userLocation != null) {
+                    locationViewModel.updateLocation(userLocation.getNickName(), userLocation);
+                }
+            }
+
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                UserLocation userLocation = snapshot.getValue(UserLocation.class);
+                if (userLocation != null) {
+                    locationViewModel.updateLocation(userLocation.getNickName(), userLocation);
+                }
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+                UserLocation userLocation = snapshot.getValue(UserLocation.class);
+                if (userLocation != null) {
+                    locationViewModel.removeLocation(userLocation.getNickName());
+                }
+            }
+
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {}
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {}
+        });
+
         TextView welcomeMessageTextView = findViewById(R.id.tvWelcomeMessage);
         String welcomeMessage = "Welcome, " + Global.me.getNickname() + "!";
         welcomeMessageTextView.setText(welcomeMessage);
