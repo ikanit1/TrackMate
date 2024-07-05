@@ -4,16 +4,27 @@ import java.util.ArrayList;
 
 public class Users {
     private String phone;
+    private String uid;
     private String email;
     private String password;
     private String nickname;
     private String fcmToken;
-    private String profilePictureUrl; // Add this field
+    private String profilePictureUrl; // User profile picture URL
     private ArrayList<String> friends;
 
+    // No-argument constructor required for Firebase
     public Users() {
+        this.phone = "";
+        this.uid = "";
+        this.email = "";
+        this.password = "";
+        this.nickname = "";
+        this.fcmToken = "";
+        this.profilePictureUrl = "";
+        this.friends = new ArrayList<>();
     }
 
+    // Constructor without profile picture URL
     public Users(String phone, String email, String password, String nickname, ArrayList<String> friends, String fcmToken) {
         this.phone = phone;
         this.email = email;
@@ -21,9 +32,10 @@ public class Users {
         this.nickname = nickname;
         this.fcmToken = fcmToken;
         this.profilePictureUrl = ""; // Default value
-        this.friends = friends;
+        this.friends = friends != null ? friends : new ArrayList<>();
     }
 
+    // Constructor with profile picture URL
     public Users(String phone, String email, String password, String nickname, ArrayList<String> friends, String fcmToken, String profilePictureUrl) {
         this.phone = phone;
         this.email = email;
@@ -31,7 +43,16 @@ public class Users {
         this.nickname = nickname;
         this.fcmToken = fcmToken;
         this.profilePictureUrl = profilePictureUrl; // Initialize this field
-        this.friends = friends;
+        this.friends = friends != null ? friends : new ArrayList<>();
+    }
+
+    // Getters and setters
+    public String getUid() {
+        return uid;
+    }
+
+    public void setUid(String uid) {
+        this.uid = uid;
     }
 
     public String getPhone() {
@@ -74,11 +95,11 @@ public class Users {
         this.fcmToken = fcmToken;
     }
 
-    public String getProfilePictureUrl() { // Add this method
+    public String getProfilePictureUrl() {
         return profilePictureUrl;
     }
 
-    public void setProfilePictureUrl(String profilePictureUrl) { // Add this method
+    public void setProfilePictureUrl(String profilePictureUrl) {
         this.profilePictureUrl = profilePictureUrl;
     }
 

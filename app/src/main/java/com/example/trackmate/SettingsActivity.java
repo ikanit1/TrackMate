@@ -1,33 +1,31 @@
 package com.example.trackmate;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.EmailAuthProvider;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
 import com.squareup.picasso.Picasso;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class SettingsActivity extends AppCompatActivity {
 
@@ -38,7 +36,7 @@ public class SettingsActivity extends AppCompatActivity {
     private TextView tvUserName, tvPhoneNumber;
     private FirebaseAuth auth;
     private DatabaseReference refMe;
-    private DatabaseReference refUserLocation;
+    private DatabaseReference refLocations;
     private StorageReference storageRef;
 
     @Override
@@ -60,7 +58,7 @@ public class SettingsActivity extends AppCompatActivity {
         storageRef = FirebaseStorage.getInstance().getReference();
         FirebaseUser currentUser = auth.getCurrentUser();
         refMe = FirebaseDatabase.getInstance().getReference("Users").child(currentUser.getUid());
-        refUserLocation = FirebaseDatabase.getInstance().getReference("UserLocations").child(currentUser.getUid());
+        refLocations = FirebaseDatabase.getInstance().getReference("Locations");
 
         if (currentUser != null) {
             tvUserName.setText(currentUser.getDisplayName());
@@ -75,27 +73,14 @@ public class SettingsActivity extends AppCompatActivity {
             });
         }
 
-        btnChangePicture.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                openFileChooser();
-            }
-        });
+        btnChangePicture.setOnClickListener(v -> openFileChooser());
 
-        btnSaveChanges.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                updateProfile();
-            }
-        });
+        btnSaveChanges.setOnClickListener(v -> updateProfile());
 
-        btnLogout.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                auth.signOut();
-                startActivity(new Intent(SettingsActivity.this, MainActivity.class));
-                finish();
-            }
+        btnLogout.setOnClickListener(v -> {
+            auth.signOut();
+            startActivity(new Intent(SettingsActivity.this, MainActivity.class));
+            finish();
         });
     }
 
@@ -114,18 +99,14 @@ public class SettingsActivity extends AppCompatActivity {
 
             // Check the file size before proceeding
             try {
-                // Get the size of the file in bytes
                 long fileSizeInBytes = getContentResolver().openInputStream(imageUri).available();
-                // Convert bytes to megabytes (1 MB = 1048576 bytes)
                 long fileSizeInMB = fileSizeInBytes / 1048576;
 
-                // Check if file size exceeds 2 MB
                 if (fileSizeInMB > 2) {
                     Toast.makeText(this, "Please select an image smaller than 2 MB", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                // Load the image into ImageView
                 Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), imageUri);
                 ivProfilePicture.setImageBitmap(bitmap);
 
@@ -136,94 +117,98 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void updateProfile() {
-        String nickname = etNickname.getText().toString().trim();
+        String newNickname = etNickname.getText().toString().trim();
         String currentPassword = etCurrentPassword.getText().toString().trim();
         String newPassword = etNewPassword.getText().toString().trim();
         FirebaseUser user = auth.getCurrentUser();
 
         if (imageUri != null) {
             StorageReference fileReference = storageRef.child("profile_pictures/" + user.getUid() + ".jpg");
-            fileReference.putFile(imageUri).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                @Override
-                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                    fileReference.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                        @Override
-                        public void onSuccess(Uri uri) {
-                            String profilePictureUrl = uri.toString();
-                            refMe.child("profilePictureUrl").setValue(profilePictureUrl);
-                            Toast.makeText(SettingsActivity.this, "Profile picture updated", Toast.LENGTH_SHORT).show();
+            fileReference.putFile(imageUri).addOnSuccessListener(taskSnapshot ->
+                    fileReference.getDownloadUrl().addOnSuccessListener(uri -> {
+                        String profilePictureUrl = uri.toString();
+                        refMe.child("profilePictureUrl").setValue(profilePictureUrl);
+                        Toast.makeText(SettingsActivity.this, "Profile picture updated", Toast.LENGTH_SHORT).show();
 
-                            // Broadcast the updated profile picture URL
-                            Intent intent = new Intent("com.example.trackmate.PROFILE_PICTURE_UPDATED");
-                            intent.putExtra("profilePictureUrl", profilePictureUrl);
-                            sendBroadcast(intent);
-                        }
-                    });
-                }
-            }).addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    Toast.makeText(SettingsActivity.this, "Failed to upload picture", Toast.LENGTH_SHORT).show();
-                }
-            });
+                        Intent intent = new Intent("com.example.trackmate.PROFILE_PICTURE_UPDATED");
+                        intent.putExtra("profilePictureUrl", profilePictureUrl);
+                        sendBroadcast(intent);
+                    })
+            ).addOnFailureListener(e ->
+                    Toast.makeText(SettingsActivity.this, "Failed to upload picture", Toast.LENGTH_SHORT).show()
+            );
         }
 
-        if (!nickname.isEmpty()) {
-            refMe.child("nickname").setValue(nickname).addOnSuccessListener(new OnSuccessListener<Void>() {
-                @Override
-                public void onSuccess(Void aVoid) {
+        if (!newNickname.isEmpty()) {
+            AtomicReference<String> oldNickname = new AtomicReference<>("");
+
+            refMe.child("nickname").get().addOnSuccessListener(dataSnapshot -> {
+                oldNickname.set(dataSnapshot.getValue(String.class));
+
+                // Update nickname in Users
+                refMe.child("nickname").setValue(newNickname).addOnSuccessListener(aVoid -> {
                     Toast.makeText(SettingsActivity.this, "Nickname updated", Toast.LENGTH_SHORT).show();
-                    refUserLocation.child("NickName").setValue(nickname).addOnSuccessListener(new OnSuccessListener<Void>() {
-                        @Override
-                        public void onSuccess(Void aVoid) {
-                            Toast.makeText(SettingsActivity.this, "User location nickname updated", Toast.LENGTH_SHORT).show();
-                        }
-                    }).addOnFailureListener(new OnFailureListener() {
-                        @Override
-                        public void onFailure(@NonNull Exception e) {
-                            Toast.makeText(SettingsActivity.this, "Failed to update user location nickname", Toast.LENGTH_SHORT).show();
+
+                    // Update keys in Locations
+                    refLocations.child(oldNickname.get()).get().addOnSuccessListener(dataSnapshot1 -> {
+                        if (dataSnapshot1.exists()) {
+                            Map<String, Object> locationData = (Map<String, Object>) dataSnapshot1.getValue();
+
+                            refLocations.child(oldNickname.get()).removeValue().addOnSuccessListener(aVoid1 ->
+                                    refLocations.child(newNickname).setValue(locationData).addOnSuccessListener(aVoid2 ->
+                                            Toast.makeText(SettingsActivity.this, "Location updated", Toast.LENGTH_SHORT).show()
+                                    ).addOnFailureListener(e ->
+                                            Toast.makeText(SettingsActivity.this, "Failed to update location", Toast.LENGTH_SHORT).show()
+                                    )
+                            ).addOnFailureListener(e ->
+                                    Toast.makeText(SettingsActivity.this, "Failed to remove old location", Toast.LENGTH_SHORT).show()
+                            );
                         }
                     });
-                }
-            }).addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    Toast.makeText(SettingsActivity.this, "Failed to update nickname", Toast.LENGTH_SHORT).show();
-                }
-            });
+
+                    // Update friends' nicknames
+                    FirebaseDatabase.getInstance().getReference("Users").get().addOnSuccessListener(dataSnapshot2 -> {
+                        for (DataSnapshot snapshot : dataSnapshot2.getChildren()) {
+                            DatabaseReference userRef = snapshot.getRef();
+                            userRef.child("friends").get().addOnSuccessListener(friendsSnapshot -> {
+                                for (DataSnapshot friendSnapshot : friendsSnapshot.getChildren()) {
+                                    if (friendSnapshot.getValue(String.class).equals(oldNickname.get())) {
+                                        friendSnapshot.getRef().setValue(newNickname);
+                                    }
+                                }
+                            });
+                        }
+                    });
+
+                }).addOnFailureListener(e ->
+                        Toast.makeText(SettingsActivity.this, "Failed to update nickname", Toast.LENGTH_SHORT).show()
+                );
+
+            }).addOnFailureListener(e ->
+                    Toast.makeText(SettingsActivity.this, "Failed to get old nickname", Toast.LENGTH_SHORT).show()
+            );
         }
 
         if (!currentPassword.isEmpty() && !newPassword.isEmpty()) {
             AuthCredential credential = EmailAuthProvider.getCredential(user.getEmail(), currentPassword);
-            user.reauthenticate(credential).addOnSuccessListener(new OnSuccessListener<Void>() {
-                @Override
-                public void onSuccess(Void aVoid) {
-                    user.updatePassword(newPassword).addOnSuccessListener(new OnSuccessListener<Void>() {
-                        @Override
-                        public void onSuccess(Void aVoid) {
-                            Toast.makeText(SettingsActivity.this, "Password updated", Toast.LENGTH_SHORT).show();
-                        }
-                    }).addOnFailureListener(new OnFailureListener() {
-                        @Override
-                        public void onFailure(@NonNull Exception e) {
-                            Toast.makeText(SettingsActivity.this, "Failed to update password", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                }
-            }).addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    Toast.makeText(SettingsActivity.this, "Re-authentication failed", Toast.LENGTH_SHORT).show();
-                }
-            });
+            user.reauthenticate(credential).addOnSuccessListener(aVoid ->
+                    user.updatePassword(newPassword).addOnSuccessListener(aVoid1 ->
+                            Toast.makeText(SettingsActivity.this, "Password updated", Toast.LENGTH_SHORT).show()
+                    ).addOnFailureListener(e ->
+                            Toast.makeText(SettingsActivity.this, "Failed to update password", Toast.LENGTH_SHORT).show()
+                    )
+            ).addOnFailureListener(e ->
+                    Toast.makeText(SettingsActivity.this, "Re-authentication failed", Toast.LENGTH_SHORT).show()
+            );
         }
     }
+
 
     @Override
     public void onBackPressed() {
         super.onBackPressed();
         Intent intent = new Intent(SettingsActivity.this, MapActivity.class);
         startActivity(intent);
-        finish(); // This will close the current activity
+        finish();
     }
 }

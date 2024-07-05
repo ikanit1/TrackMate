@@ -8,6 +8,7 @@
         android:id="@+id/topEmptyView"
         android:layout_width="match_parent"
         android:layout_height="80dp" />
+
     <TextView
         android:id="@+id/tvWelcomeMessage"
         android:layout_width="wrap_content"
@@ -88,6 +89,5 @@
         android:background="@drawable/rounded_button_background"
         android:scaleType="fitCenter"
         android:src="@drawable/sos" />
-
 
 </RelativeLayout>

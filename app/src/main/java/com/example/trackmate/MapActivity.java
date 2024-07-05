@@ -1,40 +1,26 @@
 package com.example.trackmate;
 
 import android.Manifest;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
-import android.graphics.Rect;
-import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
 import android.widget.ImageButton;
-import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.request.target.CustomTarget;
-import com.bumptech.glide.request.transition.Transition;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -49,14 +35,14 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.RemoteMessage;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
 
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -71,10 +57,13 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     private LocationRequest locationRequest;
     private LocationCallback locationCallback;
     private Marker currMarker;
-    private BitmapDescriptor userIcon; // Иконка пользователя
+    private BitmapDescriptor userIcon; // User icon
     private FusedLocationProviderClient fusedLocationProviderClient;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
-    private boolean firstTimeZoom = true; // Флаг для отслеживания первого захода
+    private boolean firstTimeZoom = true; // Flag for first-time zoom
+    private Handler handler;
+    private Runnable mapUpdateRunnable;
+    private StorageReference storageRef;
 
     @RequiresApi(api = Build.VERSION_CODES.S)
     @Override
@@ -82,16 +71,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
-        // Инициализация TextView
-        TextView welcomeMessage = findViewById(R.id.tvWelcomeMessage);
-
-        // Установка приветственного сообщения
-        if (Global.me != null) {
-            String welcomeText = "Welcome, " + Global.me.getNickname() + "!";
-            welcomeMessage.setText(welcomeText);
-        }
-
-        // Остальная инициализация
         Log.e(TAG, "onCreate");
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
         locationRequest = new LocationRequest.Builder(200)
@@ -119,17 +98,16 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             }
         };
 
-        // Инициализация карты
+        // Initialize map
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         if (mapFragment != null) {
             mapFragment.getMapAsync(this);
         }
 
-        // Загружаем маленькую иконку пользователя
-        String profilePictureUrl = Global.me.getProfilePictureUrl();
-        loadUserIcon(profilePictureUrl, bitmapDescriptor -> userIcon = bitmapDescriptor);
+        // Initialize Firebase Storage reference
+        storageRef = FirebaseStorage.getInstance().getReference();
 
-        // Обработчики кнопок
+        // Button handlers
         ImageButton friendsButton = findViewById(R.id.friendsButton);
         friendsButton.setOnClickListener(v -> {
             Intent intent = new Intent(MapActivity.this, FriendsActivity.class);
@@ -146,6 +124,16 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         sosButton.setOnClickListener(v -> {
             showConfirmationDialog();
         });
+
+        // Initialize handler and runnable for periodic updates
+        handler = new Handler(Looper.getMainLooper());
+        mapUpdateRunnable = new Runnable() {
+            @Override
+            public void run() {
+                updateFriendsMarkers();
+                handler.postDelayed(this, 10000); // 10 seconds
+            }
+        };
     }
 
     private void showConfirmationDialog() {
@@ -226,6 +214,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         if (mMap != null) {
             updateFriendsMarkers();
         }
+        handler.post(mapUpdateRunnable); // Start periodic updates
     }
 
     @Override
@@ -235,6 +224,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         if (fusedLocationProviderClient != null) {
             fusedLocationProviderClient.removeLocationUpdates(locationCallback);
         }
+        handler.removeCallbacks(mapUpdateRunnable); // Stop periodic updates
     }
 
     @RequiresApi(api = Build.VERSION_CODES.S)
@@ -256,22 +246,41 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         // Get the last known user location
         fusedLocationProviderClient.getLastLocation()
                 .addOnSuccessListener(this, location -> {
+                    Log.e(TAG, "onSuccess");
                     if (location != null) {
-                        LatLng userLatLng = new LatLng(location.getLatitude(), location.getLongitude());
-                        currMarker = mMap.addMarker(new MarkerOptions()
-                                .position(userLatLng)
-                                .title(Global.me.getNickname())
-                                .icon(userIcon));
-                        currMarker.showInfoWindow();
-                        if (firstTimeZoom) {
-                            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 15));
-                            firstTimeZoom = false;
-                        }
-                        addFriendsMarkers(); // Добавляем маркеры друзей на карту
-                        if (getIntent().hasExtra("friendNickname")) {
-                            String friendNickname = getIntent().getStringExtra("friendNickname");
-                            focusOnFriendMarker(friendNickname);
-                        }
+                        double latitude = location.getLatitude();
+                        double longitude = location.getLongitude();
+                        LatLng latLng = new LatLng(latitude, longitude);
+                        Global.myLoc = new UserLocation(String.valueOf(latitude), String.valueOf(longitude), Global.me.getNickname());
+                        Log.e("MAP", Global.myLoc.toString());
+                        refLocations = FirebaseDatabase.getInstance().getReference("Locations");
+                        refLocations.child(Global.me.getNickname()).setValue(Global.myLoc); // Use current user's nickname
+
+                        // Fetch the user's profile picture from Firebase Storage
+                        StorageReference userPicRef = storageRef.child("profile_pictures/" + FirebaseAuth.getInstance().getCurrentUser().getUid() + ".jpg");
+                        userPicRef.getBytes(Long.MAX_VALUE).addOnSuccessListener(bytes -> {
+                            Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                            BitmapDescriptor userIcon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, 150, 150, false));
+
+                            mMap.clear();
+                            currMarker = mMap.addMarker(new MarkerOptions()
+                                    .position(latLng)
+                                    .title(Global.me.getNickname()) // Set user's nickname as marker title
+                                    .icon(userIcon));
+                            currMarker.showInfoWindow();
+                            if (firstTimeZoom) {
+                                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+                                firstTimeZoom = false;
+                            }
+                            addFriendsMarkers(); // Add friends' markers to the map
+                            if (getIntent().hasExtra("friendNickname")) {
+                                String friendNickname = getIntent().getStringExtra("friendNickname");
+                                Toast.makeText(MapActivity.this, friendNickname + " go focus", Toast.LENGTH_SHORT).show();
+                                focusOnFriendMarker(friendNickname);
+                            }
+                        }).addOnFailureListener(e -> {
+                            Log.e(TAG, "Failed to fetch user profile picture", e);
+                        });
                     } else {
                         Toast.makeText(MapActivity.this, "Location not found", Toast.LENGTH_SHORT).show();
                     }
@@ -281,165 +290,112 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
     }
 
+    // Method to focus on a friend's marker by nickname
+    private void focusOnFriendMarker(String friendNickname) {
+        for (Marker marker : friendsMarkers) {
+            if (marker.getTitle().equals(friendNickname)) {
+                Toast.makeText(MapActivity.this, "Focusing on marker: " + friendNickname, Toast.LENGTH_SHORT).show();
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(marker.getPosition(), 17));
+                marker.showInfoWindow(); // Show info window for the marker
+                return;
+            }
+        }
+        Toast.makeText(MapActivity.this, "No marker found for: " + friendNickname, Toast.LENGTH_SHORT).show();
+    }
+
+    // Method to add friends' markers to the map
     private void addFriendsMarkers() {
         for (UserLocation userLoc : Global.myFriendsLocation) {
-            MarkerOptions mo = new MarkerOptions()
-                    .position(userLoc.getLatLng())
-                    .title(userLoc.getNickName())
-                    .icon(getUserIcon(userLoc.getNickName()));
-
-            Marker m = mMap.addMarker(mo);
-            Objects.requireNonNull(m).showInfoWindow();
-            friendsMarkers.add(m);
-        }
-    }
-
-    private void updateFriendsMarkers() {
-        for (Marker marker : friendsMarkers) {
-            marker.remove();
-        }
-        friendsMarkers.clear();
-
-        Iterator<UserLocation> iterator = Global.myFriendsLocation.iterator();
-        while (iterator.hasNext()) {
-            UserLocation userLocation = iterator.next();
-            Users friend = findUserByNickname(userLocation.getNickName());
+            // Fetch the friend's profile picture from Firebase Storage
+            Users friend = findUserByNickname(userLoc.getNickName());
             if (friend != null) {
-                LatLng friendLatLng = new LatLng(Double.parseDouble(userLocation.getLatitude()), Double.parseDouble(userLocation.getLongitude()));
-                String profilePictureUrl = friend.getProfilePictureUrl();
-                loadFriendIcon(profilePictureUrl, friendLatLng, userLocation.getNickName());
-            }
-        }
-    }
+                Log.d(TAG, "Friend found: " + friend.getNickname() + ", UID: " + friend.getUid());
+                StorageReference friendPicRef = storageRef.child("profile_pictures/" + friend.getUid() + ".jpg");
+                friendPicRef.getBytes(Long.MAX_VALUE).addOnSuccessListener(bytes -> {
+                    Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                    BitmapDescriptor friendIcon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, 150, 150, false));
 
-    private Bitmap resizeBitmap(Bitmap original, int width, int height) {
-        return Bitmap.createScaledBitmap(original, width, height, false);
-    }
+                    MarkerOptions mo = new MarkerOptions()
+                            .position(userLoc.getLatLng())
+                            .title(userLoc.getNickName()) // Set friend's nickname as marker title
+                            .icon(friendIcon); // Use friend's profile picture
 
-    @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        String friendNickname = intent.getStringExtra("friendNickname");
-        if (friendNickname != null) {
-            focusOnFriendMarker(friendNickname);
-        }
-    }
+                    Marker m = mMap.addMarker(mo);
+                    Objects.requireNonNull(m).showInfoWindow();
+                    friendsMarkers.add(m);
+                }).addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to fetch friend's profile picture, using default image", e);
+                    // Use default image if profile picture not found
+                    Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.user_pic);
+                    BitmapDescriptor friendIcon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, 150, 150, false));
 
-    private void focusOnFriendMarker(String friendNickname) {
-        Log.e(TAG, "focusOnFriendMarker: " + friendNickname);
-        for (Marker marker : friendsMarkers) {
-            if (Objects.equals(marker.getTitle(), friendNickname)) {
-                LatLng friendLocation = marker.getPosition();
-                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(friendLocation, 15));
-                break;
-            }
-        }
-    }
+                    MarkerOptions mo = new MarkerOptions()
+                            .position(userLoc.getLatLng())
+                            .title(userLoc.getNickName()) // Set friend's nickname as marker title
+                            .icon(friendIcon); // Use default image
 
-    private void loadUserIcon(String url, final OnIconLoadedListener listener) {
-        Glide.with(this)
-                .asBitmap()
-                .load(url)
-                .circleCrop()
-                .into(new CustomTarget<Bitmap>() {
-                    @Override
-                    public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
-                        Bitmap resizedBitmap = resizeBitmap(resource, 100, 100);
-                        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(resizedBitmap);
-                        listener.onIconLoaded(icon);
-                    }
-
-                    @Override
-                    public void onLoadCleared(@Nullable Drawable placeholder) {
-                    }
+                    Marker m = mMap.addMarker(mo);
+                    Objects.requireNonNull(m).showInfoWindow();
+                    friendsMarkers.add(m);
                 });
-    }
-
-    private Bitmap createCustomMarker(Context context, Bitmap bitmap) {
-        View markerLayout = LayoutInflater.from(context).inflate(R.layout.marker_layout, null);
-        ImageView markerImage = markerLayout.findViewById(R.id.marker_image);
-        markerImage.setImageBitmap(bitmap);
-
-        markerLayout.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-        markerLayout.layout(0, 0, markerLayout.getMeasuredWidth(), markerLayout.getMeasuredHeight());
-
-        Bitmap returnedBitmap = Bitmap.createBitmap(markerLayout.getMeasuredWidth(), markerLayout.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(returnedBitmap);
-        markerLayout.draw(canvas);
-
-        return returnedBitmap;
-    }
-
-    private void loadFriendIcon(String url, final LatLng position, final String nickname) {
-        Glide.with(this)
-                .asBitmap()
-                .load(url)
-                .circleCrop()
-                .into(new CustomTarget<Bitmap>() {
-                    @Override
-                    public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
-                        Bitmap customMarkerBitmap = createCustomMarker(MapActivity.this, resource);
-                        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(customMarkerBitmap);
-                        Marker friendMarker = mMap.addMarker(new MarkerOptions()
-                                .position(position)
-                                .title(nickname)
-                                .icon(icon));
-                        friendsMarkers.add(friendMarker);
-                    }
-
-                    @Override
-                    public void onLoadCleared(@Nullable Drawable placeholder) {
-                    }
-                });
-    }
-
-    private BitmapDescriptor getUserIcon(String nickname) {
-        String iconUrl = Global.getUserIconUrl(nickname);
-        if (iconUrl != null && !iconUrl.isEmpty()) {
-            Bitmap bitmap = getBitmapFromURL(iconUrl);
-            if (bitmap != null) {
-                return BitmapDescriptorFactory.fromBitmap(getCircularBitmap(bitmap));
+            } else {
+                Log.e(TAG, "Friend not found for nickname: " + userLoc.getNickName());
             }
         }
-        return userIcon;
     }
 
-    private Bitmap getBitmapFromURL(String src) {
-        try {
-            URL url = new URL(src);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setDoInput(true);
-            connection.connect();
-            InputStream input = connection.getInputStream();
-            return BitmapFactory.decodeStream(input);
-        } catch (Exception e) {
-            Log.e(TAG, "Error loading image from URL", e);
-            return null;
+    // Method to update friends' markers on the map
+    private void updateFriendsMarkers() {
+        // Remove all existing friends' markers from the map
+        Iterator<Marker> iterator = friendsMarkers.iterator();
+        while (iterator.hasNext()) {
+            Marker marker = iterator.next();
+            marker.remove();
+            iterator.remove();
+        }
+
+        // Add updated friends' markers to the map
+        for (UserLocation userLoc : Global.myFriendsLocation) {
+            // Fetch the friend's profile picture from Firebase Storage
+            Users friend = findUserByNickname(userLoc.getNickName());
+            if (friend != null) {
+                Log.d(TAG, "Updating friend marker: " + friend.getNickname() + ", UID: " + friend.getUid());
+                StorageReference friendPicRef = storageRef.child("profile_pictures/" + friend.getUid() + ".jpg");
+                friendPicRef.getBytes(Long.MAX_VALUE).addOnSuccessListener(bytes -> {
+                    Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                    BitmapDescriptor friendIcon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, 150, 150, false));
+
+                    MarkerOptions mo = new MarkerOptions()
+                            .position(userLoc.getLatLng())
+                            .title(userLoc.getNickName())
+                            .icon(friendIcon);
+
+                    Marker m = mMap.addMarker(mo);
+                    Objects.requireNonNull(m).showInfoWindow();
+                    friendsMarkers.add(m);
+                }).addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to fetch friend's profile picture, using default image", e);
+                    // Use default image if profile picture not found
+                    Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.user_pic);
+                    BitmapDescriptor friendIcon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, 150, 150, false));
+
+                    MarkerOptions mo = new MarkerOptions()
+                            .position(userLoc.getLatLng())
+                            .title(userLoc.getNickName())
+                            .icon(friendIcon);
+
+                    Marker m = mMap.addMarker(mo);
+                    Objects.requireNonNull(m).showInfoWindow();
+                    friendsMarkers.add(m);
+                });
+            } else {
+                Log.e(TAG, "Friend not found for nickname: " + userLoc.getNickName());
+            }
         }
     }
 
-    private Bitmap getCircularBitmap(Bitmap bitmap) {
-        int width = bitmap.getWidth();
-        int height = bitmap.getHeight();
-        int newSize = Math.min(width, height);
 
-        Bitmap output = Bitmap.createBitmap(newSize, newSize, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(output);
-
-        final int color = 0xff424242;
-        final Paint paint = new Paint();
-        final Rect rect = new Rect(0, 0, newSize, newSize);
-
-        paint.setAntiAlias(true);
-        canvas.drawARGB(0, 0, 0, 0);
-        paint.setColor(color);
-        canvas.drawCircle(newSize / 2, newSize / 2, newSize / 2, paint);
-        paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
-        canvas.drawBitmap(bitmap, rect, rect, paint);
-
-        return output;
-    }
-
+    // Handler for location permission requests
     @RequiresApi(api = Build.VERSION_CODES.S)
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
@@ -463,9 +419,5 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             }
         }
         updateFriendsMarkers();
-    }
-
-    interface OnIconLoadedListener {
-        void onIconLoaded(BitmapDescriptor icon);
     }
 }
