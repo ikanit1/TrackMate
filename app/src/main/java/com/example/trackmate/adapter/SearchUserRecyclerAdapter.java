@@ -15,9 +15,9 @@ import com.example.trackmate.R;
 import com.example.trackmate.Users;
 import com.firebase.ui.database.FirebaseRecyclerAdapter;
 import com.firebase.ui.database.FirebaseRecyclerOptions;
+import com.squareup.picasso.Picasso;
 
-public class SearchUserRecyclerAdapter extends
-        FirebaseRecyclerAdapter<Users, SearchUserRecyclerAdapter.UserModelViewHolder> {
+public class SearchUserRecyclerAdapter extends FirebaseRecyclerAdapter<Users, SearchUserRecyclerAdapter.UserModelViewHolder> {
 
     private Context context;
     private OnImageClick mListener;
@@ -31,6 +31,7 @@ public class SearchUserRecyclerAdapter extends
     protected void onBindViewHolder(@NonNull UserModelViewHolder holder, int position, @NonNull Users model) {
         holder.usernameText.setText(model.getNickname());
         holder.phoneText.setText(model.getPhone());
+        loadProfilePicture(model.getProfilePictureUrl(), holder.imageView);
     }
 
     @NonNull
@@ -57,7 +58,7 @@ public class SearchUserRecyclerAdapter extends
                     int position = getAdapterPosition();
                     if (mListener != null) {
                         if (position != RecyclerView.NO_POSITION) {
-                            v.setBackgroundColor(Color.BLUE);
+                            v.setBackgroundColor(Color.RED);
                             mListener.onImageClick(usernameText.getText().toString());
                         }
                     }
@@ -72,5 +73,15 @@ public class SearchUserRecyclerAdapter extends
 
     public void setOnImageClick(OnImageClick listener) {
         mListener = listener;
+    }
+
+    private void loadProfilePicture(String profilePictureUrl, ImageView imageView) {
+        if (profilePictureUrl != null && !profilePictureUrl.isEmpty()) {
+            // Загрузка изображения с использованием Picasso
+            Picasso.get().load(profilePictureUrl).placeholder(R.drawable.user_pic).into(imageView);
+        } else {
+            // Установка изображения по умолчанию, если нет изображения профиля
+            imageView.setImageResource(R.drawable.user_pic);
+        }
     }
 }

@@ -33,7 +33,6 @@
             android:layout_height="150dp"
             android:layout_marginBottom="16dp"
             android:contentDescription="@string/user_pic"
-            android:src="@drawable/user_pic"
             android:scaleType="centerCrop"
             android:padding="8dp"/>
 

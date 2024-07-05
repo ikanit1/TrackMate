@@ -28,7 +28,7 @@ import java.util.List;
 
 public class UserActivity extends AppCompatActivity {
 
-    private boolean isFriend; // Флаг для определения, является ли пользователь другом
+    private boolean isFriend; // Flag to check if the user is a friend
     private Button addFriendButton;
     private Button removeFriendButton;
     private Button viewLocationButton;
@@ -47,12 +47,12 @@ public class UserActivity extends AppCompatActivity {
         auth = FirebaseAuth.getInstance();
         databaseReference = FirebaseDatabase.getInstance().getReference().child("Users");
 
-        // Инициализация кнопок
+        // Initialize buttons
         addFriendButton = findViewById(R.id.add_friend_button);
         removeFriendButton = findViewById(R.id.remove_friend_button);
         viewLocationButton = findViewById(R.id.view_location_button);
 
-        // Инициализация кнопок навигации
+        // Initialize navigation buttons
         ImageButton homeButton = findViewById(R.id.homeButton);
         homeButton.setOnClickListener(v -> {
             Intent intent = new Intent(UserActivity.this, MapActivity.class);
@@ -60,12 +60,9 @@ public class UserActivity extends AppCompatActivity {
         });
 
         ImageButton settingsButton = findViewById(R.id.settingsButton);
-        settingsButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(UserActivity.this, SettingsActivity.class);
-                startActivity(intent);
-            }
+        settingsButton.setOnClickListener(v -> {
+            Intent intent = new Intent(UserActivity.this, SettingsActivity.class);
+            startActivity(intent);
         });
 
         ImageButton friendsButton = findViewById(R.id.friendsButton);
@@ -75,7 +72,7 @@ public class UserActivity extends AppCompatActivity {
             finish();
         });
 
-        // Получение данных из Intent
+        // Get data from Intent
         Intent intent = getIntent();
         if (intent != null) {
             String nickname = intent.getStringExtra("nickname");
@@ -89,71 +86,63 @@ public class UserActivity extends AppCompatActivity {
 
             ivProfilePicture = findViewById(R.id.user_image);
 
-            // Загрузка изображения профиля из Firebase Storage
+            // Load profile picture from Firebase Storage
             loadProfilePicture(nickname);
 
-            // Проверка, является ли пользователь другом и отображение соответствующих кнопок
+            // Check if the user is a friend and update the visibility of the buttons accordingly
             isFriend = checkIfUserIsFriend(nickname);
             updateFriendshipButtonsVisibility(isFriend);
         }
 
-        // Установка слушателей нажатий на кнопки (добавить друга, удалить друга, показать местоположение)
-        addFriendButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                addFriend(userNick.getText().toString());
-            }
-        });
-        removeFriendButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                removeFriend(userNick.getText().toString());
-            }
-        });
-        viewLocationButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String friendNickname = userNick.getText().toString();
-                Intent intent = new Intent(UserActivity.this, MapActivity.class);
-                intent.putExtra("friendNickname", friendNickname);
-                startActivity(intent);
-                finish(); // Закрыть UserActivity, чтобы вернуться в MapActivity
-            }
+        // Set click listeners for the buttons (add friend, remove friend, view location)
+        addFriendButton.setOnClickListener(v -> addFriend(userNick.getText().toString()));
+        removeFriendButton.setOnClickListener(v -> removeFriend(userNick.getText().toString()));
+        viewLocationButton.setOnClickListener(v -> {
+            String friendNickname = userNick.getText().toString();
+            Intent intent1 = new Intent(UserActivity.this, MapActivity.class);
+            intent1.putExtra("friendNickname", friendNickname);
+            startActivity(intent1);
+            finish(); // Close UserActivity to return to MapActivity
         });
     }
 
-    // Загрузка изображения профиля
+    // Load the profile picture
     private void loadProfilePicture(String nickname) {
-        DatabaseReference userRef = databaseReference.child(nickname);
-        userRef.addListenerForSingleValueEvent(new ValueEventListener() {
+        databaseReference.orderByChild("nickname").equalTo(nickname).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
-                    String profilePictureUrl = dataSnapshot.child("profilePictureUrl").getValue(String.class);
-                    if (profilePictureUrl != null && !profilePictureUrl.isEmpty()) {
-                        // Загрузка изображения с использованием Picasso
-                        Picasso.get().load(profilePictureUrl).placeholder(R.drawable.user_pic).into(ivProfilePicture);
-                    } else {
-                        // Установка изображения по умолчанию, если нет изображения профиля
-                        ivProfilePicture.setImageResource(R.drawable.user_pic);
+                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                        Users user = snapshot.getValue(Users.class);
+                        if (user != null && user.getProfilePictureUrl() != null && !user.getProfilePictureUrl().isEmpty()) {
+                            // Load the image using Picasso
+                            Picasso.get().load(user.getProfilePictureUrl()).into(ivProfilePicture);
+                        } else {
+                            // Do nothing if there's no profile picture URL
+                            Log.e("UserActivity", "No profile picture URL found");
+                        }
                     }
+                } else {
+                    // Do nothing if no data
+                    Log.e("UserActivity", "No data found for user");
                 }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
-                Log.e("UserActivity", "Ошибка при получении данных пользователя", databaseError.toException());
+                Log.e("UserActivity", "Error fetching user data", databaseError.toException());
             }
         });
     }
 
-    // Проверка, является ли пользователь другом
+
+    // Check if the user is a friend
     private boolean checkIfUserIsFriend(String friendNickname) {
         ArrayList<String> friends = Global.me.getFriends();
         return friends != null && friends.contains(friendNickname);
     }
 
-    // Добавить друга
+    // Add friend
     private void addFriend(String friendNickname) {
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser != null) {
@@ -180,10 +169,10 @@ public class UserActivity extends AppCompatActivity {
                                 removeFriendButton.setVisibility(View.VISIBLE);
                                 viewLocationButton.setVisibility(View.VISIBLE);
 
-                                // Добавить друга в список друзей Global
+                                // Add friend to Global friends list
                                 Global.myFriendsLocation.add(findUserLocationByNickname(friendNickname));
 
-                                // Обновить маркеры друзей на карте
+                                // Update friends markers on the map
                                 updateMapActivityFriendsMarkers(friendNickname);
                             } else {
                                 Toast.makeText(UserActivity.this, "Ошибка при добавлении друга", Toast.LENGTH_SHORT).show();
@@ -205,7 +194,7 @@ public class UserActivity extends AppCompatActivity {
         }
     }
 
-    // Удалить друга
+    // Remove friend
     private void removeFriend(String friendNickname) {
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser != null) {
@@ -237,7 +226,7 @@ public class UserActivity extends AppCompatActivity {
                                     UserLocation userLoc = iterator.next();
                                     if (userLoc.getNickName().equals(friendNickname)) {
                                         iterator.remove();
-                                        break; // Выйти из цикла после удаления друга
+                                        break; // Exit loop after removing friend
                                     }
                                 }
 
@@ -262,7 +251,7 @@ public class UserActivity extends AppCompatActivity {
         }
     }
 
-    // Метод для нахождения местоположения пользователя по нику
+    // Method to find user's location by nickname
     private UserLocation findUserLocationByNickname(String nickname) {
         for (UserLocation userLoc : Global.allLocations) {
             if (userLoc.getNickName().equals(nickname)) {
@@ -272,17 +261,17 @@ public class UserActivity extends AppCompatActivity {
         return null;
     }
 
-    // Метод для обновления маркеров друзей на карте
+    // Method to update friends markers on the map
     private void updateMapActivityFriendsMarkers(String friendNickname) {
         for (UserLocation userLoc : Global.allLocations) {
             if (userLoc.getNickName().equals(friendNickname)) {
                 Global.myFriendsLocation.add(userLoc);
-                break; // Выйти из цикла после добавления друга
+                break; // Exit loop after adding friend
             }
         }
     }
 
-    // Метод для обновления видимости кнопок дружбы
+    // Method to update visibility of friendship buttons
     private void updateFriendshipButtonsVisibility(boolean isFriend) {
         if (isFriend) {
             addFriendButton.setVisibility(View.GONE);
