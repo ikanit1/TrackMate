@@ -57,6 +57,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.RemoteMessage;
 import com.google.firebase.storage.FirebaseStorage;
@@ -98,36 +99,27 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
         // Set welcome message
         locationViewModel = new ViewModelProvider(this).get(LocationViewModel.class);
+        refLocations = FirebaseDatabase.getInstance().getReference("Locations");
         // Add Firebase listeners for location and nickname changes
         DatabaseReference locationsRef = FirebaseDatabase.getInstance().getReference("Locations");
-        locationsRef.addChildEventListener(new ChildEventListener() {
+        locationsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
-            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                UserLocation userLocation = snapshot.getValue(UserLocation.class);
-                if (userLocation != null) {
-                    locationViewModel.updateLocation(userLocation.getNickName(), userLocation);
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    Map<String, Object> locationData = (Map<String, Object>) snapshot.getValue();
+                    if (locationData != null) {
+                        Object latitude = locationData.get("latitude");
+                        Object longitude = locationData.get("longitude");
+                        if (latitude instanceof Double) {
+                            locationData.put("latitude", String.valueOf(latitude));
+                        }
+                        if (longitude instanceof Double) {
+                            locationData.put("longitude", String.valueOf(longitude));
+                        }
+                        snapshot.getRef().setValue(locationData);
+                    }
                 }
             }
-
-            @Override
-            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                UserLocation userLocation = snapshot.getValue(UserLocation.class);
-                if (userLocation != null) {
-                    locationViewModel.updateLocation(userLocation.getNickName(), userLocation);
-                }
-            }
-
-            @Override
-            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
-                UserLocation userLocation = snapshot.getValue(UserLocation.class);
-                if (userLocation != null) {
-                    locationViewModel.removeLocation(userLocation.getNickName());
-                }
-            }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {}
-
             @Override
             public void onCancelled(@NonNull DatabaseError error) {}
         });
@@ -137,7 +129,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         welcomeMessageTextView.setText(welcomeMessage);
 
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
-        locationRequest = new LocationRequest.Builder(200)
+        locationRequest = new LocationRequest.Builder(5000)
                 .setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
                 .build();
         locationCallback = new LocationCallback() {
@@ -157,6 +149,14 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
                             firstTimeZoom = false;
                         }
+                    }
+
+                    // Update Firebase with the new location
+                    if (refLocations != null) {
+                        Global.myLoc = new UserLocation(String.valueOf(location.getLatitude()), String.valueOf(location.getLongitude()), Global.me.getNickname());
+                        refLocations.child(Global.me.getNickname()).setValue(Global.myLoc)
+                                .addOnSuccessListener(aVoid -> Log.d(TAG, "Location updated in Firebase"))
+                                .addOnFailureListener(e -> Log.e(TAG, "Failed to update location in Firebase", e));
                     }
                 }
             }

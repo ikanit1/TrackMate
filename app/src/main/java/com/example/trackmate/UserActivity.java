@@ -95,7 +95,7 @@ public class UserActivity extends AppCompatActivity {
         }
 
         // Set click listeners for the buttons (add friend, remove friend, view location)
-        addFriendButton.setOnClickListener(v -> addFriend(userNick.getText().toString()));
+        addFriendButton.setOnClickListener(v -> sendFriendInvitation(userNick.getText().toString()));
         removeFriendButton.setOnClickListener(v -> removeFriend(userNick.getText().toString()));
         viewLocationButton.setOnClickListener(v -> {
             String friendNickname = userNick.getText().toString();
@@ -105,6 +105,65 @@ public class UserActivity extends AppCompatActivity {
             finish(); // Close UserActivity to return to MapActivity
         });
     }
+
+    private void sendFriendInvitation(String receiverNickname) {
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser != null) {
+            String currentUserId = currentUser.getUid();
+            databaseReference.orderByChild("nickname").equalTo(receiverNickname).addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    if (dataSnapshot.exists()) {
+                        for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                            String receiverId = snapshot.getKey();
+                            DatabaseReference invitationsRef = FirebaseDatabase.getInstance().getReference().child("Invitations");
+                            String invitationId = invitationsRef.push().getKey();
+                            String timestamp = String.valueOf(System.currentTimeMillis()); // Example timestamp
+
+                            Invitation invitation = new Invitation(currentUserId, receiverId, "pending", timestamp, invitationId);
+                            invitationsRef.child(invitationId).setValue(invitation).addOnCompleteListener(task -> {
+                                if (task.isSuccessful()) {
+                                    Toast.makeText(UserActivity.this, "Invitation sent", Toast.LENGTH_SHORT).show();
+                                    listenForInvitationResponse(invitationId, currentUserId, receiverId);
+                                } else {
+                                    Toast.makeText(UserActivity.this, "Failed to send invitation", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+                    } else {
+                        Toast.makeText(UserActivity.this, "User not found", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {
+                    Log.e("UserActivity", "Error fetching user data", databaseError.toException());
+                }
+            });
+        } else {
+            Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show();
+        }
+    }
+    private void listenForInvitationResponse(String invitationId, String senderId, String receiverId) {
+        DatabaseReference invitationRef = FirebaseDatabase.getInstance().getReference().child("Invitations").child(invitationId);
+        invitationRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                Invitation invitation = dataSnapshot.getValue(Invitation.class);
+                if (invitation != null && "accepted".equals(invitation.getStatus())) {
+                    addFriend(receiverId);
+                    invitationRef.removeEventListener(this);
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.e("UserActivity", "Error listening for invitation response", databaseError.toException());
+            }
+        });
+    }
+
+
 
     // Load the profile picture
     private void loadProfilePicture(String nickname) {
@@ -135,7 +194,6 @@ public class UserActivity extends AppCompatActivity {
         });
     }
 
-
     // Check if the user is a friend
     private boolean checkIfUserIsFriend(String friendNickname) {
         ArrayList<String> friends = Global.me.getFriends();
@@ -143,7 +201,7 @@ public class UserActivity extends AppCompatActivity {
     }
 
     // Add friend
-    private void addFriend(String friendNickname) {
+    private void addFriend(String friendId) {
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser != null) {
             String currentUserId = currentUser.getUid();
@@ -159,40 +217,50 @@ public class UserActivity extends AppCompatActivity {
                         }
                     }
 
-                    if (!friendsList.contains(friendNickname)) {
-                        friendsList.add(friendNickname);
+                    if (!friendsList.contains(friendId)) {
+                        friendsList.add(friendId);
 
                         currentUserRef.setValue(friendsList).addOnCompleteListener(task -> {
                             if (task.isSuccessful()) {
-                                Toast.makeText(UserActivity.this, "Друг добавлен", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(UserActivity.this, "Friend added", Toast.LENGTH_SHORT).show();
                                 addFriendButton.setVisibility(View.GONE);
                                 removeFriendButton.setVisibility(View.VISIBLE);
                                 viewLocationButton.setVisibility(View.VISIBLE);
 
                                 // Add friend to Global friends list
-                                Global.myFriendsLocation.add(findUserLocationByNickname(friendNickname));
+                                Global.myFriendsLocation.add(findUserLocationById(friendId));
 
                                 // Update friends markers on the map
-                                updateMapActivityFriendsMarkers(friendNickname);
+                                updateMapActivityFriendsMarkers(friendId);
                             } else {
-                                Toast.makeText(UserActivity.this, "Ошибка при добавлении друга", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(UserActivity.this, "Error adding friend", Toast.LENGTH_SHORT).show();
                             }
                         });
 
                     } else {
-                        Toast.makeText(UserActivity.this, "Друг уже добавлен", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(UserActivity.this, "Friend already added", Toast.LENGTH_SHORT).show();
                     }
                 }
 
                 @Override
                 public void onCancelled(@NonNull DatabaseError databaseError) {
-                    Log.e("UserActivity", "Ошибка при получении данных пользователя", databaseError.toException());
+                    Log.e("UserActivity", "Error fetching user data", databaseError.toException());
                 }
             });
         } else {
-            Toast.makeText(this, "Пользователь не авторизован", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show();
         }
     }
+    private UserLocation findUserLocationById(String userId) {
+        for (UserLocation userLoc : Global.allLocations) {
+            if (userLoc.getNickName().equals(userId)) {
+                return userLoc;
+            }
+        }
+        return null;
+    }
+
+
 
     // Remove friend
     private void removeFriend(String friendNickname) {
@@ -216,7 +284,7 @@ public class UserActivity extends AppCompatActivity {
 
                         currentUserRef.setValue(friendsList).addOnCompleteListener(task -> {
                             if (task.isSuccessful()) {
-                                Toast.makeText(UserActivity.this, "Друг удален", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(UserActivity.this, "Friend removed", Toast.LENGTH_SHORT).show();
                                 addFriendButton.setVisibility(View.VISIBLE);
                                 removeFriendButton.setVisibility(View.GONE);
                                 viewLocationButton.setVisibility(View.GONE);
@@ -232,22 +300,22 @@ public class UserActivity extends AppCompatActivity {
 
                                 updateMapActivityFriendsMarkers(friendNickname);
                             } else {
-                                Toast.makeText(UserActivity.this, "Ошибка при удалении друга", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(UserActivity.this, "Error removing friend", Toast.LENGTH_SHORT).show();
                             }
                         });
 
                     } else {
-                        Toast.makeText(UserActivity.this, "Друг не найден", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(UserActivity.this, "Friend not found", Toast.LENGTH_SHORT).show();
                     }
                 }
 
                 @Override
                 public void onCancelled(@NonNull DatabaseError databaseError) {
-                    Log.e("UserActivity", "Ошибка при получении данных пользователя", databaseError.toException());
+                    Log.e("UserActivity", "Error fetching user data", databaseError.toException());
                 }
             });
         } else {
-            Toast.makeText(this, "Пользователь не авторизован", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show();
         }
     }
 
