@@ -1,9 +1,11 @@
 package com.example.trackmate;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -88,8 +90,9 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     private Runnable mapUpdateRunnable;
     private StorageReference storageRef;
     private LocationViewModel locationViewModel;
+    private BroadcastReceiver nicknameChangeReceiver;
 
-    @RequiresApi(api = Build.VERSION_CODES.S)
+    @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -101,6 +104,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         locationViewModel = new ViewModelProvider(this).get(LocationViewModel.class);
         addFriendLocationListener();
         refLocations = FirebaseDatabase.getInstance().getReference("Locations");
+
         // Add Firebase listeners for location and nickname changes
         DatabaseReference locationsRef = FirebaseDatabase.getInstance().getReference("Locations");
         locationsRef.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -207,26 +211,79 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                 handler.postDelayed(this, 10000); // 10 seconds
             }
         };
+
+        // BroadcastReceiver for nickname changes
+        nicknameChangeReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if ("com.example.trackmate.NICKNAME_UPDATED".equals(intent.getAction())) {
+                    String oldNickname = intent.getStringExtra("oldNickname");
+                    String newNickname = intent.getStringExtra("newNickname");
+                    updateFriendMarkersForNicknameChange(oldNickname, newNickname);
+                }
+            }
+        };
+        // Register the receiver
+        IntentFilter filter = new IntentFilter("com.example.trackmate.NICKNAME_UPDATED");
+        registerReceiver(nicknameChangeReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Unregister the receiver
+        unregisterReceiver(nicknameChangeReceiver);
+    }
+
+    private void updateFriendMarkersForNicknameChange(String oldNickname, String newNickname) {
+        refLocations.child(oldNickname).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                Object locationData = dataSnapshot.getValue();
+                if (locationData != null) {
+                    // Remove the old location reference
+                    refLocations.child(oldNickname).removeValue().addOnSuccessListener(aVoid -> {
+                        // Set the new location reference
+                        refLocations.child(newNickname).setValue(locationData).addOnSuccessListener(aVoid1 -> {
+                            // Update the marker on the map
+                            for (Marker marker : friendsMarkers) {
+                                if (marker.getTitle().equals(oldNickname)) {
+                                    LatLng position = marker.getPosition();
+                                    marker.remove(); // Remove the old marker
+
+                                    // Add a new marker with the updated nickname
+                                    Marker newMarker = mMap.addMarker(new MarkerOptions()
+                                            .position(position)
+                                            .title(newNickname)
+                                            .icon(getUserIcon(newNickname)));
+                                    friendsMarkers.add(newMarker);
+                                    break;
+                                }
+                            }
+                            Toast.makeText(MapActivity.this, "Nickname and marker updated", Toast.LENGTH_SHORT).show();
+                        }).addOnFailureListener(e ->
+                                Toast.makeText(MapActivity.this, "Failed to update new location reference", Toast.LENGTH_SHORT).show());
+                    }).addOnFailureListener(e ->
+                            Toast.makeText(MapActivity.this, "Failed to remove old location reference", Toast.LENGTH_SHORT).show());
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Toast.makeText(MapActivity.this, "Failed to fetch old location data", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
 
     private void showConfirmationDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage("Are you sure you want to send your location to all friends?");
-        builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                sendLocationNotification();
-                Toast.makeText(MapActivity.this, "Sending location...", Toast.LENGTH_SHORT).show();
-                dialog.dismiss();
-            }
+        builder.setPositiveButton("Yes", (dialog, which) -> {
+            sendLocationNotification();
+            Toast.makeText(MapActivity.this, "Sending location...", Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
         });
-        builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-            }
-        });
+        builder.setNegativeButton("No", (dialog, which) -> dialog.dismiss());
         AlertDialog dialog = builder.create();
         dialog.show();
     }

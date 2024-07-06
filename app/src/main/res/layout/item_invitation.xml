@@ -10,17 +10,22 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:text="User Nickname"
+        android:textColor="@color/black"
         android:textSize="16sp" />
 
     <Button
         android:id="@+id/accept_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Accept" />
+        android:text="Accept"
+        android:textColor="@color/white"
+        android:backgroundTint="@color/main" />
 
     <Button
         android:id="@+id/reject_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Reject" />
+        android:text="Reject"
+        android:textColor="@color/white"
+        android:backgroundTint="@color/main" />
 </LinearLayout>

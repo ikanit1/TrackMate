@@ -1,14 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:background="#FFEBEE"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#FFEBEE">
 
+    <!-- Заголовок -->
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:layout_centerHorizontal="true"
+        android:text="Friend Requests"
+        android:textSize="24sp"
+        android:textColor="@color/main"
+        android:textStyle="bold" />
 
+    <!-- Разделительная линия -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_below="@id/title"
+        android:layout_marginTop="8dp"
+        android:background="@color/main" />
+    <ImageView
+        android:id="@+id/ivTopIcon"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:src="@drawable/clean_icon"/>
+
+    <!-- RecyclerView для заявок в друзья -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_below="@id/title"
         android:layout_margin="16dp"
+        android:layout_marginTop="24dp"
         android:scrollbars="vertical" />
 </RelativeLayout>

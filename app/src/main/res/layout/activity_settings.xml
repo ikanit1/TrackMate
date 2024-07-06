@@ -5,6 +5,14 @@
     android:padding="16dp">
 
     <ImageView
+        android:id="@+id/ivTopIcon"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:src="@drawable/clean_icon"/>
+
+    <ImageView
         android:id="@+id/ivProfilePicture"
         android:layout_width="100dp"
         android:layout_height="100dp"

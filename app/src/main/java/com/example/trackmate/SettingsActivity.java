@@ -124,69 +124,74 @@ public class SettingsActivity extends AppCompatActivity {
         String newPassword = etNewPassword.getText().toString().trim();
         FirebaseUser user = auth.getCurrentUser();
 
-        if (imageUri != null) {
-            StorageReference fileReference = storageRef.child("profile_pictures/" + user.getUid() + ".jpg");
-            fileReference.putFile(imageUri).addOnSuccessListener(taskSnapshot ->
-                    fileReference.getDownloadUrl().addOnSuccessListener(uri -> {
-                        String profilePictureUrl = uri.toString();
-                        refMe.child("profilePictureUrl").setValue(profilePictureUrl);
-                        Toast.makeText(SettingsActivity.this, "Profile picture updated", Toast.LENGTH_SHORT).show();
+        AtomicReference<String> oldNickname = new AtomicReference<>("");
 
-                        Intent intent = new Intent("com.example.trackmate.PROFILE_PICTURE_UPDATED");
-                        intent.putExtra("profilePictureUrl", profilePictureUrl);
-                        sendBroadcast(intent);
-                    })
-            ).addOnFailureListener(e ->
-                    Toast.makeText(SettingsActivity.this, "Failed to upload picture", Toast.LENGTH_SHORT).show()
-            );
+        if (newNickname.isEmpty()) {
+            Toast.makeText(this, "Nickname cannot be empty", Toast.LENGTH_SHORT).show();
+            return;
         }
 
-        if (!newNickname.isEmpty()) {
-            AtomicReference<String> oldNickname = new AtomicReference<>("");
+        refMe.child("nickname").get().addOnSuccessListener(dataSnapshot -> {
+            oldNickname.set(dataSnapshot.getValue(String.class));
 
-            refMe.child("nickname").get().addOnSuccessListener(dataSnapshot -> {
-                oldNickname.set(dataSnapshot.getValue(String.class));
+            if (imageUri != null) {
+                StorageReference fileReference = storageRef.child("profile_pictures/" + user.getUid() + ".jpg");
+                fileReference.putFile(imageUri).addOnSuccessListener(taskSnapshot ->
+                        fileReference.getDownloadUrl().addOnSuccessListener(uri -> {
+                            String profilePictureUrl = uri.toString();
+                            refMe.child("profilePictureUrl").setValue(profilePictureUrl);
+                            Toast.makeText(SettingsActivity.this, "Profile picture updated", Toast.LENGTH_SHORT).show();
 
-                refMe.child("nickname").setValue(newNickname).addOnSuccessListener(aVoid -> {
-                    Toast.makeText(SettingsActivity.this, "Nickname updated", Toast.LENGTH_SHORT).show();
-
-                    refLocations.child(oldNickname.get()).get().addOnSuccessListener(dataSnapshot1 -> {
-                        if (dataSnapshot1.exists()) {
-                            Map<String, Object> locationData = (Map<String, Object>) dataSnapshot1.getValue();
-
-                            refLocations.child(oldNickname.get()).removeValue().addOnSuccessListener(aVoid1 ->
-                                    refLocations.child(newNickname).setValue(locationData).addOnSuccessListener(aVoid2 ->
-                                            Toast.makeText(SettingsActivity.this, "Location updated", Toast.LENGTH_SHORT).show()
-                                    ).addOnFailureListener(e ->
-                                            Toast.makeText(SettingsActivity.this, "Failed to update location", Toast.LENGTH_SHORT).show()
-                                    )
-                            ).addOnFailureListener(e ->
-                                    Toast.makeText(SettingsActivity.this, "Failed to remove old location", Toast.LENGTH_SHORT).show()
-                            );
-                        }
-                    });
-
-                    FirebaseDatabase.getInstance().getReference("Users").get().addOnSuccessListener(dataSnapshot2 -> {
-                        for (DataSnapshot snapshot : dataSnapshot2.getChildren()) {
-                            DatabaseReference userRef = snapshot.getRef();
-                            userRef.child("friends").get().addOnSuccessListener(friendsSnapshot -> {
-                                for (DataSnapshot friendSnapshot : friendsSnapshot.getChildren()) {
-                                    if (friendSnapshot.getValue(String.class).equals(oldNickname.get())) {
-                                        friendSnapshot.getRef().setValue(newNickname);
-                                    }
-                                }
-                            });
-                        }
-                    });
-
-                }).addOnFailureListener(e ->
-                        Toast.makeText(SettingsActivity.this, "Failed to update nickname", Toast.LENGTH_SHORT).show()
+                            Intent intent = new Intent("com.example.trackmate.PROFILE_PICTURE_UPDATED");
+                            intent.putExtra("profilePictureUrl", profilePictureUrl);
+                            intent.putExtra("oldNickname", oldNickname.get());
+                            intent.putExtra("newNickname", newNickname);
+                            sendBroadcast(intent);
+                        })
+                ).addOnFailureListener(e ->
+                        Toast.makeText(SettingsActivity.this, "Failed to upload picture", Toast.LENGTH_SHORT).show()
                 );
+            }
+
+            refMe.child("nickname").setValue(newNickname).addOnSuccessListener(aVoid -> {
+                Toast.makeText(SettingsActivity.this, "Nickname updated", Toast.LENGTH_SHORT).show();
+
+                refLocations.child(oldNickname.get()).get().addOnSuccessListener(dataSnapshot1 -> {
+                    if (dataSnapshot1.exists()) {
+                        Map<String, Object> locationData = (Map<String, Object>) dataSnapshot1.getValue();
+
+                        refLocations.child(oldNickname.get()).removeValue().addOnSuccessListener(aVoid1 ->
+                                refLocations.child(newNickname).setValue(locationData).addOnSuccessListener(aVoid2 ->
+                                        Toast.makeText(SettingsActivity.this, "Location updated", Toast.LENGTH_SHORT).show()
+                                ).addOnFailureListener(e ->
+                                        Toast.makeText(SettingsActivity.this, "Failed to update location", Toast.LENGTH_SHORT).show()
+                                )
+                        ).addOnFailureListener(e ->
+                                Toast.makeText(SettingsActivity.this, "Failed to remove old location", Toast.LENGTH_SHORT).show()
+                        );
+                    }
+                });
+
+                FirebaseDatabase.getInstance().getReference("Users").get().addOnSuccessListener(dataSnapshot2 -> {
+                    for (DataSnapshot snapshot : dataSnapshot2.getChildren()) {
+                        DatabaseReference userRef = snapshot.getRef();
+                        userRef.child("friends").get().addOnSuccessListener(friendsSnapshot -> {
+                            for (DataSnapshot friendSnapshot : friendsSnapshot.getChildren()) {
+                                if (friendSnapshot.getValue(String.class).equals(oldNickname.get())) {
+                                    friendSnapshot.getRef().setValue(newNickname);
+                                }
+                            }
+                        });
+                    }
+                });
 
             }).addOnFailureListener(e ->
-                    Toast.makeText(SettingsActivity.this, "Failed to get old nickname", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(SettingsActivity.this, "Failed to update nickname", Toast.LENGTH_SHORT).show()
             );
-        }
+
+        }).addOnFailureListener(e ->
+                Toast.makeText(SettingsActivity.this, "Failed to get old nickname", Toast.LENGTH_SHORT).show()
+        );
 
         if (!currentPassword.isEmpty() && !newPassword.isEmpty()) {
             AuthCredential credential = EmailAuthProvider.getCredential(user.getEmail(), currentPassword);
