@@ -90,8 +90,7 @@ public class UserActivity extends AppCompatActivity {
             loadProfilePicture(nickname);
 
             // Check if the user is a friend and update the visibility of the buttons accordingly
-            isFriend = checkIfUserIsFriend(nickname);
-            updateFriendshipButtonsVisibility(isFriend);
+            checkIfUserIsFriend(nickname);
         }
 
         // Set click listeners for the buttons (add friend, remove friend, view location)
@@ -144,6 +143,7 @@ public class UserActivity extends AppCompatActivity {
             Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show();
         }
     }
+
     private void listenForInvitationResponse(String invitationId, String senderId, String receiverId) {
         DatabaseReference invitationRef = FirebaseDatabase.getInstance().getReference().child("Invitations").child(invitationId);
         invitationRef.addValueEventListener(new ValueEventListener() {
@@ -151,7 +151,20 @@ public class UserActivity extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 Invitation invitation = dataSnapshot.getValue(Invitation.class);
                 if (invitation != null && "accepted".equals(invitation.getStatus())) {
-                    addFriend(receiverId);
+                    databaseReference.child(receiverId).addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot snapshot) {
+                            Users receiverUser = snapshot.getValue(Users.class);
+                            if (receiverUser != null) {
+                                addFriend(receiverUser.getNickname());
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) {
+                            Log.e("UserActivity", "Error fetching receiver user data", error.toException());
+                        }
+                    });
                     invitationRef.removeEventListener(this);
                 }
             }
@@ -162,8 +175,6 @@ public class UserActivity extends AppCompatActivity {
             }
         });
     }
-
-
 
     // Load the profile picture
     private void loadProfilePicture(String nickname) {
@@ -195,13 +206,37 @@ public class UserActivity extends AppCompatActivity {
     }
 
     // Check if the user is a friend
-    private boolean checkIfUserIsFriend(String friendNickname) {
-        ArrayList<String> friends = Global.me.getFriends();
-        return friends != null && friends.contains(friendNickname);
+    private void checkIfUserIsFriend(String friendNickname) {
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser != null) {
+            String currentUserId = currentUser.getUid();
+            DatabaseReference currentUserRef = databaseReference.child(currentUserId);
+
+            currentUserRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    Users currentUserData = dataSnapshot.getValue(Users.class);
+                    if (currentUserData != null && currentUserData.getFriends() != null) {
+                        List<String> friendsList = currentUserData.getFriends();
+                        isFriend = friendsList.contains(friendNickname);
+                    } else {
+                        isFriend = false;
+                    }
+                    updateFriendshipButtonsVisibility(isFriend);
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {
+                    Log.e("UserActivity", "Error fetching user data", databaseError.toException());
+                }
+            });
+        } else {
+            Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show();
+        }
     }
 
     // Add friend
-    private void addFriend(String friendId) {
+    private void addFriend(String friendNickname) {
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser != null) {
             String currentUserId = currentUser.getUid();
@@ -217,8 +252,8 @@ public class UserActivity extends AppCompatActivity {
                         }
                     }
 
-                    if (!friendsList.contains(friendId)) {
-                        friendsList.add(friendId);
+                    if (!friendsList.contains(friendNickname)) {
+                        friendsList.add(friendNickname);
 
                         currentUserRef.setValue(friendsList).addOnCompleteListener(task -> {
                             if (task.isSuccessful()) {
@@ -228,10 +263,10 @@ public class UserActivity extends AppCompatActivity {
                                 viewLocationButton.setVisibility(View.VISIBLE);
 
                                 // Add friend to Global friends list
-                                Global.myFriendsLocation.add(findUserLocationById(friendId));
+                                Global.myFriendsLocation.add(findUserLocationByNickname(friendNickname));
 
                                 // Update friends markers on the map
-                                updateMapActivityFriendsMarkers(friendId);
+                                updateMapActivityFriendsMarkers(friendNickname);
                             } else {
                                 Toast.makeText(UserActivity.this, "Error adding friend", Toast.LENGTH_SHORT).show();
                             }
@@ -251,16 +286,15 @@ public class UserActivity extends AppCompatActivity {
             Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show();
         }
     }
-    private UserLocation findUserLocationById(String userId) {
+
+    private UserLocation findUserLocationByNickname(String nickname) {
         for (UserLocation userLoc : Global.allLocations) {
-            if (userLoc.getNickName().equals(userId)) {
+            if (userLoc.getNickName().equals(nickname)) {
                 return userLoc;
             }
         }
         return null;
     }
-
-
 
     // Remove friend
     private void removeFriend(String friendNickname) {
@@ -317,16 +351,6 @@ public class UserActivity extends AppCompatActivity {
         } else {
             Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show();
         }
-    }
-
-    // Method to find user's location by nickname
-    private UserLocation findUserLocationByNickname(String nickname) {
-        for (UserLocation userLoc : Global.allLocations) {
-            if (userLoc.getNickName().equals(nickname)) {
-                return userLoc;
-            }
-        }
-        return null;
     }
 
     // Method to update friends markers on the map

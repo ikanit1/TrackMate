@@ -99,6 +99,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
         // Set welcome message
         locationViewModel = new ViewModelProvider(this).get(LocationViewModel.class);
+        addFriendLocationListener();
         refLocations = FirebaseDatabase.getInstance().getReference("Locations");
         // Add Firebase listeners for location and nickname changes
         DatabaseReference locationsRef = FirebaseDatabase.getInstance().getReference("Locations");
@@ -106,20 +107,28 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                    Map<String, Object> locationData = (Map<String, Object>) snapshot.getValue();
-                    if (locationData != null) {
-                        Object latitude = locationData.get("latitude");
-                        Object longitude = locationData.get("longitude");
-                        if (latitude instanceof Double) {
-                            locationData.put("latitude", String.valueOf(latitude));
+                    Object value = snapshot.getValue();
+                    if (value instanceof Map) {
+                        Map<String, Object> locationData = (Map<String, Object>) value;
+                        if (locationData != null) {
+                            Object latitude = locationData.get("latitude");
+                            Object longitude = locationData.get("longitude");
+                            if (latitude instanceof Double) {
+                                locationData.put("latitude", String.valueOf(latitude));
+                            } else if (latitude instanceof String) {
+                                locationData.put("latitude", (String) latitude);
+                            }
+                            if (longitude instanceof Double) {
+                                locationData.put("longitude", String.valueOf(longitude));
+                            } else if (longitude instanceof String) {
+                                locationData.put("longitude", (String) longitude);
+                            }
+                            snapshot.getRef().setValue(locationData);
                         }
-                        if (longitude instanceof Double) {
-                            locationData.put("longitude", String.valueOf(longitude));
-                        }
-                        snapshot.getRef().setValue(locationData);
                     }
                 }
             }
+
             @Override
             public void onCancelled(@NonNull DatabaseError error) {}
         });
@@ -514,6 +523,60 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         Marker m = mMap.addMarker(mo);
         Objects.requireNonNull(m).showInfoWindow();
         friendsMarkers.add(m);
+    }
+    private void addFriendLocationListener() {
+        DatabaseReference friendsRef = FirebaseDatabase.getInstance().getReference("Users")
+                .child(FirebaseAuth.getInstance().getCurrentUser().getUid())
+                .child("friends");
+
+        friendsRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                for (DataSnapshot friendSnapshot : dataSnapshot.getChildren()) {
+                    String friendNickname = friendSnapshot.getValue(String.class);
+                    if (friendNickname != null) {
+                        listenToFriendLocation(friendNickname);
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.e(TAG, "Error fetching friends", databaseError.toException());
+            }
+        });
+    }
+    private void listenToFriendLocation(String friendNickname) {
+        DatabaseReference friendLocationRef = FirebaseDatabase.getInstance().getReference("Locations").child(friendNickname);
+        friendLocationRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                UserLocation friendLocation = dataSnapshot.getValue(UserLocation.class);
+                if (friendLocation != null) {
+                    updateFriendMarker(friendLocation);
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.e(TAG, "Error fetching friend's location", databaseError.toException());
+            }
+        });
+    }
+    private void updateFriendMarker(UserLocation friendLocation) {
+        LatLng friendLatLng = new LatLng(Double.parseDouble(friendLocation.getLatitude()), Double.parseDouble(friendLocation.getLongitude()));
+        String profilePictureUrl = Global.getUserIconUrl(friendLocation.getNickName());
+
+        // Remove existing marker for this friend if it exists
+        for (Marker marker : friendsMarkers) {
+            if (marker.getTitle().equals(friendLocation.getNickName())) {
+                marker.remove();
+                friendsMarkers.remove(marker);
+                break;
+            }
+        }
+
+        loadFriendIcon(profilePictureUrl, friendLatLng, friendLocation.getNickName());
     }
 
     // Handler for location permission requests

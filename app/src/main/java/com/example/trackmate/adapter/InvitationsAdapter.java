@@ -69,21 +69,22 @@ public class InvitationsAdapter extends RecyclerView.Adapter<InvitationsAdapter.
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                     String nickname = dataSnapshot.child("nickname").getValue(String.class);
                     senderName.setText(nickname);
+
+                    // Set click listeners after getting nickname
+                    acceptButton.setOnClickListener(v -> {
+                        updateInvitationStatus(invitation, "accepted");
+                        addFriend(nickname);
+                    });
+
+                    rejectButton.setOnClickListener(v -> {
+                        updateInvitationStatus(invitation, "rejected");
+                    });
                 }
 
                 @Override
                 public void onCancelled(@NonNull DatabaseError databaseError) {
                     Log.e("InvitationsAdapter", "Error fetching user data", databaseError.toException());
                 }
-            });
-
-            acceptButton.setOnClickListener(v -> {
-                updateInvitationStatus(invitation, "accepted");
-                addFriend(invitation.getSenderId());
-            });
-
-            rejectButton.setOnClickListener(v -> {
-                updateInvitationStatus(invitation, "rejected");
             });
         }
 
@@ -97,7 +98,7 @@ public class InvitationsAdapter extends RecyclerView.Adapter<InvitationsAdapter.
             });
         }
 
-        private void addFriend(String friendId) {
+        private void addFriend(String friendNickname) {
             FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
             if (currentUser != null) {
                 String currentUserId = currentUser.getUid();
@@ -113,8 +114,8 @@ public class InvitationsAdapter extends RecyclerView.Adapter<InvitationsAdapter.
                             }
                         }
 
-                        if (!friendsList.contains(friendId)) {
-                            friendsList.add(friendId);
+                        if (!friendsList.contains(friendNickname)) {
+                            friendsList.add(friendNickname);
 
                             currentUserRef.setValue(friendsList).addOnCompleteListener(task -> {
                                 if (task.isSuccessful()) {
