@@ -61,10 +61,8 @@ public class SettingsActivity extends AppCompatActivity {
         refLocations = FirebaseDatabase.getInstance().getReference("Locations");
 
         if (currentUser != null) {
-            // Retrieve and set the phone number
             tvPhoneNumber.setText(currentUser.getPhoneNumber());
 
-            // Load user details from the database
             refMe.get().addOnSuccessListener(dataSnapshot -> {
                 Users user = dataSnapshot.getValue(Users.class);
                 if (user != null) {
@@ -89,7 +87,6 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
-
     private void openFileChooser() {
         Intent intent = new Intent();
         intent.setType("image/*");
@@ -103,7 +100,6 @@ public class SettingsActivity extends AppCompatActivity {
         if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
             imageUri = data.getData();
 
-            // Check the file size before proceeding
             try {
                 long fileSizeInBytes = getContentResolver().openInputStream(imageUri).available();
                 long fileSizeInMB = fileSizeInBytes / 1048576;
@@ -151,11 +147,9 @@ public class SettingsActivity extends AppCompatActivity {
             refMe.child("nickname").get().addOnSuccessListener(dataSnapshot -> {
                 oldNickname.set(dataSnapshot.getValue(String.class));
 
-                // Update nickname in Users
                 refMe.child("nickname").setValue(newNickname).addOnSuccessListener(aVoid -> {
                     Toast.makeText(SettingsActivity.this, "Nickname updated", Toast.LENGTH_SHORT).show();
 
-                    // Update keys in Locations
                     refLocations.child(oldNickname.get()).get().addOnSuccessListener(dataSnapshot1 -> {
                         if (dataSnapshot1.exists()) {
                             Map<String, Object> locationData = (Map<String, Object>) dataSnapshot1.getValue();
@@ -172,7 +166,6 @@ public class SettingsActivity extends AppCompatActivity {
                         }
                     });
 
-                    // Update friends' nicknames
                     FirebaseDatabase.getInstance().getReference("Users").get().addOnSuccessListener(dataSnapshot2 -> {
                         for (DataSnapshot snapshot : dataSnapshot2.getChildren()) {
                             DatabaseReference userRef = snapshot.getRef();

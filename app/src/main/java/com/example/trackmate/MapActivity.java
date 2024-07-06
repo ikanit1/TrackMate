@@ -443,6 +443,12 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     }
 
     private void loadFriendIcon(String url, final LatLng position, final String nickname) {
+        if (url == null || url.isEmpty()) {
+            // Use default image if URL is null or empty
+            useDefaultImage(position, nickname);
+            return;
+        }
+
         Glide.with(this)
                 .asBitmap()
                 .load(url)
@@ -459,10 +465,27 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                     }
 
                     @Override
+                    public void onLoadFailed(@Nullable Drawable errorDrawable) {
+                        // Use default image if loading fails
+                        useDefaultImage(position, nickname);
+                    }
+
+                    @Override
                     public void onLoadCleared(@Nullable Drawable placeholder) {
                     }
                 });
     }
+
+    private void useDefaultImage(LatLng position, String nickname) {
+        Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.user_pic);
+        BitmapDescriptor friendIcon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, 150, 150, false));
+        Marker friendMarker = mMap.addMarker(new MarkerOptions()
+                .position(position)
+                .title(nickname)
+                .icon(friendIcon));
+        friendsMarkers.add(friendMarker);
+    }
+
 
     private Bitmap createCustomMarker(Context context, Bitmap bitmap) {
         View markerLayout = LayoutInflater.from(context).inflate(R.layout.marker_layout, null);
@@ -478,6 +501,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
         return returnedBitmap;
     }
+
 
     // Method to use the default image
     private void useDefaultImage(UserLocation userLoc) {

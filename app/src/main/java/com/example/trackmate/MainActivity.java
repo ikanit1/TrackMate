@@ -54,9 +54,8 @@ public class MainActivity extends AppCompatActivity {
     };
 
     private void Quit(){
-
-            ArrayList<String> friends = Global.me.getFriends();
-            if (friends != null) {
+        ArrayList<String> friends = Global.me.getFriends();
+        if (friends != null) {
             Global.myFriendsLocation = new ArrayList<>();
             for (String friend : friends) {
                 for (UserLocation location : Global.allLocations) {
@@ -67,11 +66,11 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
-            Toast.makeText(MainActivity.this, "Login Successful" + Global.myFriendsLocation.size(), Toast.LENGTH_SHORT).show();
-            startActivity(new Intent(MainActivity.this, MapActivity.class));
-            finish();
-
+        Toast.makeText(MainActivity.this, "Login Successful" + Global.myFriendsLocation.size(), Toast.LENGTH_SHORT).show();
+        startActivity(new Intent(MainActivity.this, MapActivity.class));
+        finish();
     }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -79,19 +78,19 @@ public class MainActivity extends AppCompatActivity {
 
         progressBar = findViewById(R.id.progressBar);
 
-        Button btnRegister =  findViewById(R.id.btnRegister);
+        Button btnRegister = findViewById(R.id.btnRegister);
         auth = FirebaseAuth.getInstance();
         etEmail = findViewById(R.id.etEmail);
         etPassword = findViewById(R.id.etPassword);
         Button btnLogin = findViewById(R.id.btnLogin);
 
-        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
                     LOCATION_PERMISSION_REQUEST_CODE);
         }
+
         btnRegister.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -130,6 +129,11 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
+        // Check if the user is already logged in
+        if (auth.getCurrentUser() != null) {
+            retrieve(auth.getCurrentUser().getUid());
+        }
     }
 
     @Override
