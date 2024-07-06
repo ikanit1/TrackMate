@@ -1,7 +1,9 @@
 package com.example.trackmate;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.ImageButton;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -36,6 +38,23 @@ public class InvitationsActivity extends AppCompatActivity {
         invitationList = new ArrayList<>();
         adapter = new InvitationsAdapter(invitationList);
         recyclerView.setAdapter(adapter);
+        // Обработка нажатий на кнопки навигации
+        ImageButton homeButton = findViewById(R.id.homeButton);
+        homeButton.setOnClickListener(v -> {
+            Intent intent = new Intent(InvitationsActivity.this, MapActivity.class);
+            startActivity(intent);
+        });
+        ImageButton friendsButton = findViewById(R.id.friendsButton);
+        friendsButton.setOnClickListener(v -> {
+            Intent intent = new Intent(InvitationsActivity.this, FriendsActivity.class);
+            startActivity(intent);
+            finish();
+        });
+        ImageButton settingsButton = findViewById(R.id.settingsButton);
+        settingsButton.setOnClickListener(v -> {
+            Intent intent = new Intent(InvitationsActivity.this, SettingsActivity.class);
+            startActivity(intent);
+        });
 
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser != null) {

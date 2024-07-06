@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -25,6 +26,7 @@ import com.squareup.picasso.Picasso;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class SettingsActivity extends AppCompatActivity {
@@ -75,6 +77,22 @@ public class SettingsActivity extends AppCompatActivity {
                 }
             });
         }
+        ImageButton homeButton = findViewById(R.id.homeButton);
+        homeButton.setOnClickListener(v -> {
+            Intent intent = new Intent(SettingsActivity.this, MapActivity.class);
+            startActivity(intent);
+        });
+        ImageButton friendsButton = findViewById(R.id.friendsButton);
+        friendsButton.setOnClickListener(v -> {
+            Intent intent = new Intent(SettingsActivity.this, FriendsActivity.class);
+            startActivity(intent);
+            finish();
+        });
+        ImageButton settingsButton = findViewById(R.id.settingsButton);
+        settingsButton.setOnClickListener(v -> {
+            Intent intent = new Intent(SettingsActivity.this, SettingsActivity.class);
+            startActivity(intent);
+        });
 
         btnChangePicture.setOnClickListener(v -> openFileChooser());
 

@@ -26,7 +26,7 @@
         android:layout_below="@id/ivProfilePicture"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="8dp"
-        android:textColor="@color/white"
+        android:textColor="@android:color/white"
         android:backgroundTint="@color/main"
         android:text="Change Picture" />
 
@@ -37,8 +37,7 @@
         android:layout_below="@id/btnChangePicture"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="16dp"
-        android:textColor="@color/black"
-        android:textColorHint="@color/black"
+        android:textColor="@android:color/black"
         android:textSize="18sp"
         android:text="User Name" />
 
@@ -49,8 +48,7 @@
         android:layout_below="@id/tvUserName"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="8dp"
-        android:textColor="@color/black"
-        android:textColorHint="@color/black"
+        android:textColor="@android:color/black"
         android:textSize="18sp"
         android:text="Phone Number" />
 
@@ -63,8 +61,8 @@
         android:backgroundTint="@color/main"
         android:hint="Enter new nickname"
         android:minHeight="48dp"
-        android:textColor="@color/black"
-        android:textColorHint="@color/black" />
+        android:textColor="@android:color/black"
+        android:textColorHint="@android:color/black" />
 
     <EditText
         android:id="@+id/etCurrentPassword"
@@ -76,8 +74,8 @@
         android:hint="Enter current password"
         android:inputType="textPassword"
         android:minHeight="48dp"
-        android:textColor="@color/black"
-        android:textColorHint="@color/black" />
+        android:textColor="@android:color/black"
+        android:textColorHint="@android:color/black" />
 
     <EditText
         android:id="@+id/etNewPassword"
@@ -89,8 +87,8 @@
         android:hint="Enter new password"
         android:inputType="textPassword"
         android:minHeight="48dp"
-        android:textColor="@color/black"
-        android:textColorHint="@color/black" />
+        android:textColor="@android:color/black"
+        android:textColorHint="@android:color/black" />
 
     <Button
         android:id="@+id/btnSaveChanges"
@@ -98,7 +96,7 @@
         android:layout_height="wrap_content"
         android:layout_below="@id/etNewPassword"
         android:layout_marginTop="16dp"
-        android:textColor="@color/white"
+        android:textColor="@android:color/white"
         android:backgroundTint="@color/main"
         android:text="Save Changes" />
 
@@ -108,7 +106,44 @@
         android:layout_height="wrap_content"
         android:layout_below="@id/btnSaveChanges"
         android:layout_marginTop="16dp"
-        android:textColor="@color/white"
+        android:textColor="@android:color/white"
         android:backgroundTint="@color/main"
         android:text="Logout" />
+
+    <LinearLayout
+        android:id="@+id/bottomEmptyView"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:weightSum="3">
+
+        <ImageButton
+            android:id="@+id/friendsButton"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:src="@drawable/friends"
+            android:scaleType="fitCenter" />
+
+        <ImageButton
+            android:id="@+id/homeButton"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:src="@drawable/home"
+            android:scaleType="fitCenter" />
+
+        <ImageButton
+            android:id="@+id/settingsButton"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:src="@drawable/csettings"
+            android:scaleType="fitCenter" />
+    </LinearLayout>
 </RelativeLayout>
