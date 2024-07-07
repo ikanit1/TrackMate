@@ -1,85 +1,90 @@
-<?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FFEBEE">
 
+    <!-- ImageView для фото профиля -->
     <ImageView
-        android:id="@+id/ivTopIcon"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:layout_alignParentEnd="true"
-        android:src="@drawable/clean_icon" />
+        android:id="@+id/ivProfilePicture"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:src="@drawable/user_pic"
+        android:background="#CCCCCC"/>
 
+    <!-- Кнопка для выбора фотографии -->
+    <Button
+        android:id="@+id/btnChoosePicture"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/ivProfilePicture"
+        android:textColor="@color/white"
+        android:layout_centerHorizontal="true"
+        android:backgroundTint="@color/main"
+        android:layout_marginTop="16dp"
+        android:text="Choose Picture"/>
+
+    <!-- Поле ввода для никнейма -->
     <EditText
         android:id="@+id/etNickname"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/ivTopIcon"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
-        android:backgroundTint="@color/main"
-        android:hint="@string/nickname"
         android:textColor="@color/black"
         android:textColorHint="@color/black"
+        android:layout_below="@id/btnChoosePicture"
+        android:layout_margin="16dp"
+        android:hint="Nickname"
         android:inputType="textPersonName"/>
 
-    <EditText
-        android:id="@+id/etREmail"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/etNickname"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
-        android:backgroundTint="@color/main"
-        android:textColor="@color/black"
-        android:textColorHint="@color/black"
-        android:hint="@string/email"
-        android:inputType="textEmailAddress" />
+    <!-- Поле ввода для телефона -->
     <EditText
         android:id="@+id/etPhone"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/etREmail"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
-        android:backgroundTint="@color/main"
         android:textColor="@color/black"
         android:textColorHint="@color/black"
-        android:hint="@string/phone"
-        android:inputType="phone" />
+        android:layout_height="wrap_content"
+        android:layout_below="@id/etNickname"
+        android:layout_margin="16dp"
+        android:hint="Phone"
+        android:inputType="phone"/>
+
+    <!-- Поле ввода для email -->
     <EditText
-        android:id="@+id/etRPassword"
+        android:id="@+id/etREmail"
         android:layout_width="match_parent"
+        android:textColor="@color/black"
+        android:textColorHint="@color/black"
         android:layout_height="wrap_content"
         android:layout_below="@id/etPhone"
         android:layout_margin="16dp"
-        android:hint="@string/password"
-        android:inputType="textPassword"
+        android:hint="Email"
+        android:inputType="textEmailAddress"/>
+
+    <!-- Поле ввода для пароля -->
+    <EditText
+        android:id="@+id/etRPassword"
+        android:layout_width="match_parent"
         android:textColor="@color/black"
         android:textColorHint="@color/black"
-        android:backgroundTint="@color/main" />
+        android:layout_height="wrap_content"
+        android:layout_below="@id/etREmail"
+        android:layout_margin="16dp"
+        android:hint="Password"
+        android:inputType="textPassword"/>
 
-
+    <!-- Кнопка для регистрации -->
     <Button
         android:id="@+id/btnRegister"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/etRPassword"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
+        android:layout_margin="16dp"
         android:backgroundTint="@color/main"
-        android:text="@string/register"
-        android:textColor="#FFFFFF" />
+        android:text="Register"
+        android:textColor="#FFFFFF"/>
 
+    <!-- Кнопка для возврата -->
     <Button
         android:id="@+id/btnBack"
         android:layout_width="wrap_content"
@@ -87,7 +92,7 @@
         android:layout_below="@id/btnRegister"
         android:layout_centerHorizontal="true"
         android:background="@android:color/transparent"
-        android:text="@string/back"
-        android:textColor="#A89B9F" />
+        android:text="Back"
+        android:textColor="#A89B9F"/>
 
 </RelativeLayout>
