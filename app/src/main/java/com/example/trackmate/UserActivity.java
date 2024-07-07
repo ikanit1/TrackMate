@@ -165,6 +165,16 @@ public class UserActivity extends AppCompatActivity {
                             Log.e("UserActivity", "Error fetching receiver user data", error.toException());
                         }
                     });
+
+                    // Remove the invitation from the database after it is accepted
+                    invitationRef.removeValue().addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            Log.d("UserActivity", "Accepted invitation removed from database");
+                        } else {
+                            Log.e("UserActivity", "Error removing accepted invitation", task.getException());
+                        }
+                    });
+
                     invitationRef.removeEventListener(this);
                 }
             }
@@ -297,6 +307,7 @@ public class UserActivity extends AppCompatActivity {
     }
 
     // Remove friend
+    // Remove friend
     private void removeFriend(String friendNickname) {
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser != null) {
@@ -332,7 +343,8 @@ public class UserActivity extends AppCompatActivity {
                                     }
                                 }
 
-                                updateMapActivityFriendsMarkers(friendNickname);
+                                // Now remove the current user from the friend's friend list
+                                removeCurrentUserFromFriend(friendNickname, currentUserId);
                             } else {
                                 Toast.makeText(UserActivity.this, "Error removing friend", Toast.LENGTH_SHORT).show();
                             }
@@ -351,6 +363,52 @@ public class UserActivity extends AppCompatActivity {
         } else {
             Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show();
         }
+    }
+    private void removeCurrentUserFromFriend(String friendNickname, String currentUserId) {
+        databaseReference.orderByChild("nickname").equalTo(friendNickname).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                        String friendId = snapshot.getKey();
+                        DatabaseReference friendRef = databaseReference.child(friendId).child("friends");
+
+                        friendRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                            @Override
+                            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                                List<String> friendsList = new ArrayList<>();
+                                if (dataSnapshot.exists()) {
+                                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                                        friendsList.add(snapshot.getValue(String.class));
+                                    }
+                                }
+
+                                if (friendsList.contains(currentUserId)) {
+                                    friendsList.remove(currentUserId);
+                                    friendRef.setValue(friendsList).addOnCompleteListener(task -> {
+                                        if (!task.isSuccessful()) {
+                                            Log.e("UserActivity", "Error removing current user from friend's friend list");
+                                        }
+                                    });
+                                }
+                            }
+
+                            @Override
+                            public void onCancelled(@NonNull DatabaseError databaseError) {
+                                Log.e("UserActivity", "Error fetching friend's data", databaseError.toException());
+                            }
+                        });
+                    }
+                } else {
+                    Log.e("UserActivity", "Friend not found in database");
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.e("UserActivity", "Error fetching friend's data", databaseError.toException());
+            }
+        });
     }
 
     // Method to update friends markers on the map
