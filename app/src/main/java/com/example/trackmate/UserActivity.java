@@ -307,7 +307,6 @@ public class UserActivity extends AppCompatActivity {
     }
 
     // Remove friend
-    // Remove friend
     private void removeFriend(String friendNickname) {
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser != null) {
@@ -334,6 +333,7 @@ public class UserActivity extends AppCompatActivity {
                                 removeFriendButton.setVisibility(View.GONE);
                                 viewLocationButton.setVisibility(View.GONE);
 
+                                // Remove friend from Global friends list
                                 Iterator<UserLocation> iterator = Global.myFriendsLocation.iterator();
                                 while (iterator.hasNext()) {
                                     UserLocation userLoc = iterator.next();
@@ -364,6 +364,9 @@ public class UserActivity extends AppCompatActivity {
             Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show();
         }
     }
+
+
+    // Remove the current user from the friend's friend list
     private void removeCurrentUserFromFriend(String friendNickname, String currentUserId) {
         databaseReference.orderByChild("nickname").equalTo(friendNickname).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -386,10 +389,14 @@ public class UserActivity extends AppCompatActivity {
                                 if (friendsList.contains(currentUserId)) {
                                     friendsList.remove(currentUserId);
                                     friendRef.setValue(friendsList).addOnCompleteListener(task -> {
-                                        if (!task.isSuccessful()) {
-                                            Log.e("UserActivity", "Error removing current user from friend's friend list");
+                                        if (task.isSuccessful()) {
+                                            Log.d("UserActivity", "Successfully removed current user from friend's friend list");
+                                        } else {
+                                            Log.e("UserActivity", "Error removing current user from friend's friend list", task.getException());
                                         }
                                     });
+                                } else {
+                                    Log.e("UserActivity", "Current user not found in friend's friend list");
                                 }
                             }
 

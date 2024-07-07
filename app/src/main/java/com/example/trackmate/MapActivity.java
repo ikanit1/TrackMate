@@ -3,7 +3,6 @@ package com.example.trackmate;
 import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
@@ -54,7 +53,6 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -75,21 +73,20 @@ import java.util.Map;
 import java.util.Objects;
 
 public class MapActivity extends AppCompatActivity implements OnMapReadyCallback {
-    private final String TAG = "MyTag";
+    private final String TAG = "MapActivity";
     private DatabaseReference refLocations;
     private ArrayList<Marker> friendsMarkers = new ArrayList<>();
     private GoogleMap mMap;
     private LocationRequest locationRequest;
     private LocationCallback locationCallback;
     private Marker currMarker;
-    private BitmapDescriptor userIcon; // User icon
+    private BitmapDescriptor userIcon;
     private FusedLocationProviderClient fusedLocationProviderClient;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
-    private boolean firstTimeZoom = true; // Flag for first-time zoom
+    private boolean firstTimeZoom = true;
     private Handler handler;
     private Runnable mapUpdateRunnable;
     private StorageReference storageRef;
-    private LocationViewModel locationViewModel;
     private BroadcastReceiver nicknameChangeReceiver;
 
     @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
@@ -98,45 +95,9 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
-        Log.e(TAG, "onCreate");
+        Log.d(TAG, "onCreate");
 
-        // Set welcome message
-        locationViewModel = new ViewModelProvider(this).get(LocationViewModel.class);
-        addFriendLocationListener();
         refLocations = FirebaseDatabase.getInstance().getReference("Locations");
-
-        // Add Firebase listeners for location and nickname changes
-        DatabaseReference locationsRef = FirebaseDatabase.getInstance().getReference("Locations");
-        locationsRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                    Object value = snapshot.getValue();
-                    if (value instanceof Map) {
-                        Map<String, Object> locationData = (Map<String, Object>) value;
-                        if (locationData != null) {
-                            Object latitude = locationData.get("latitude");
-                            Object longitude = locationData.get("longitude");
-                            if (latitude instanceof Double) {
-                                locationData.put("latitude", String.valueOf(latitude));
-                            } else if (latitude instanceof String) {
-                                locationData.put("latitude", (String) latitude);
-                            }
-                            if (longitude instanceof Double) {
-                                locationData.put("longitude", String.valueOf(longitude));
-                            } else if (longitude instanceof String) {
-                                locationData.put("longitude", (String) longitude);
-                            }
-                            snapshot.getRef().setValue(locationData);
-                        }
-                    }
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {}
-        });
-
         TextView welcomeMessageTextView = findViewById(R.id.tvWelcomeMessage);
         String welcomeMessage = "Welcome, " + Global.me.getNickname() + "!";
         welcomeMessageTextView.setText(welcomeMessage);
@@ -148,13 +109,13 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(@NonNull LocationResult locationResult) {
-                Log.e(TAG, "onLocationResult");
+                Log.d(TAG, "onLocationResult");
                 if (locationResult == null) {
                     return;
                 }
 
                 for (Location location : locationResult.getLocations()) {
-                    Log.e(TAG, location.toString());
+                    Log.d(TAG, location.toString());
                     LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
                     if (currMarker != null) {
                         currMarker.setPosition(latLng);
@@ -175,16 +136,13 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             }
         };
 
-        // Initialize map
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         if (mapFragment != null) {
             mapFragment.getMapAsync(this);
         }
 
-        // Initialize Firebase Storage reference
         storageRef = FirebaseStorage.getInstance().getReference();
 
-        // Button handlers
         ImageButton friendsButton = findViewById(R.id.friendsButton);
         friendsButton.setOnClickListener(v -> {
             Intent intent = new Intent(MapActivity.this, FriendsActivity.class);
@@ -198,11 +156,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             finish();
         });
         ImageButton sosButton = findViewById(R.id.sosButton);
-        sosButton.setOnClickListener(v -> {
-            showConfirmationDialog();
-        });
+        sosButton.setOnClickListener(v -> showConfirmationDialog());
 
-        // Initialize handler and runnable for periodic updates
         handler = new Handler(Looper.getMainLooper());
         mapUpdateRunnable = new Runnable() {
             @Override
@@ -212,7 +167,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             }
         };
 
-        // BroadcastReceiver for nickname changes
         nicknameChangeReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -223,7 +177,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                 }
             }
         };
-        // Register the receiver
         IntentFilter filter = new IntentFilter("com.example.trackmate.NICKNAME_UPDATED");
         registerReceiver(nicknameChangeReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
     }
@@ -231,48 +184,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        // Unregister the receiver
         unregisterReceiver(nicknameChangeReceiver);
-    }
-
-    private void updateFriendMarkersForNicknameChange(String oldNickname, String newNickname) {
-        refLocations.child(oldNickname).addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                Object locationData = dataSnapshot.getValue();
-                if (locationData != null) {
-                    // Remove the old location reference
-                    refLocations.child(oldNickname).removeValue().addOnSuccessListener(aVoid -> {
-                        // Set the new location reference
-                        refLocations.child(newNickname).setValue(locationData).addOnSuccessListener(aVoid1 -> {
-                            // Update the marker on the map
-                            for (Marker marker : friendsMarkers) {
-                                if (marker.getTitle().equals(oldNickname)) {
-                                    LatLng position = marker.getPosition();
-                                    marker.remove(); // Remove the old marker
-
-                                    // Add a new marker with the updated nickname
-                                    Marker newMarker = mMap.addMarker(new MarkerOptions()
-                                            .position(position)
-                                            .title(newNickname)
-                                            .icon(getUserIcon(newNickname)));
-                                    friendsMarkers.add(newMarker);
-                                    break;
-                                }
-                            }
-                            Toast.makeText(MapActivity.this, "Nickname and marker updated", Toast.LENGTH_SHORT).show();
-                        }).addOnFailureListener(e ->
-                                Toast.makeText(MapActivity.this, "Failed to update new location reference", Toast.LENGTH_SHORT).show());
-                    }).addOnFailureListener(e ->
-                            Toast.makeText(MapActivity.this, "Failed to remove old location reference", Toast.LENGTH_SHORT).show());
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                Toast.makeText(MapActivity.this, "Failed to fetch old location data", Toast.LENGTH_SHORT).show();
-            }
-        });
     }
 
     private void showConfirmationDialog() {
@@ -299,7 +211,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
     private void sendLocationNotification() {
         LatLng myLocation = new LatLng(Double.parseDouble(Global.myLoc.getLatitude()), Double.parseDouble(Global.myLoc.getLongitude()));
-
         Log.d(TAG, "Sending location notification. My location: " + myLocation.toString());
 
         for (UserLocation friendLoc : Global.myFriendsLocation) {
@@ -341,7 +252,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     @Override
     protected void onResume() {
         super.onResume();
-        Log.e(TAG, "onResume");
+        Log.d(TAG, "onResume");
         if (mMap != null) {
             updateFriendsMarkers();
         }
@@ -351,7 +262,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     @Override
     protected void onPause() {
         super.onPause();
-        Log.e(TAG, "onPause");
+        Log.d(TAG, "onPause");
         if (fusedLocationProviderClient != null) {
             fusedLocationProviderClient.removeLocationUpdates(locationCallback);
         }
@@ -361,11 +272,10 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     @RequiresApi(api = Build.VERSION_CODES.S)
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
-        Log.e(TAG, "onMapReady");
+        Log.d(TAG, "onMapReady");
         mMap = googleMap;
         mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
 
-        // Check location permissions
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
@@ -374,37 +284,34 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             return;
         }
 
-        // Get the last known user location
         fusedLocationProviderClient.getLastLocation()
                 .addOnSuccessListener(this, location -> {
-                    Log.e(TAG, "onSuccess");
+                    Log.d(TAG, "onSuccess");
                     if (location != null) {
                         double latitude = location.getLatitude();
                         double longitude = location.getLongitude();
                         LatLng latLng = new LatLng(latitude, longitude);
                         Global.myLoc = new UserLocation(String.valueOf(latitude), String.valueOf(longitude), Global.me.getNickname());
-                        Log.e("MAP", Global.myLoc.toString());
-                        refLocations = FirebaseDatabase.getInstance().getReference("Locations");
-                        refLocations.child(Global.me.getNickname()).setValue(Global.myLoc); // Use current user's nickname
+                        Log.d("MAP", Global.myLoc.toString());
+                        refLocations.child(Global.me.getNickname()).setValue(Global.myLoc);
 
-                        // Fetch the user's profile picture from Firebase Storage
                         StorageReference userPicRef = storageRef.child("profile_pictures/" + FirebaseAuth.getInstance().getCurrentUser().getUid() + ".jpg");
                         userPicRef.getBytes(Long.MAX_VALUE).addOnSuccessListener(bytes -> {
                             Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                            Bitmap circularBitmap = getCircularBitmap(bitmap); // Make the bitmap circular
+                            Bitmap circularBitmap = getCircularBitmap(bitmap);
                             BitmapDescriptor userIcon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(circularBitmap, 150, 150, false));
 
                             mMap.clear();
                             currMarker = mMap.addMarker(new MarkerOptions()
                                     .position(latLng)
-                                    .title(Global.me.getNickname()) // Set user's nickname as marker title
+                                    .title(Global.me.getNickname())
                                     .icon(userIcon));
                             currMarker.showInfoWindow();
                             if (firstTimeZoom) {
                                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
                                 firstTimeZoom = false;
                             }
-                            addFriendsMarkers(); // Add friends' markers to the map
+                            addFriendsMarkers();
                             if (getIntent().hasExtra("friendNickname")) {
                                 String friendNickname = getIntent().getStringExtra("friendNickname");
                                 Toast.makeText(MapActivity.this, friendNickname + " go focus", Toast.LENGTH_SHORT).show();
@@ -418,24 +325,21 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                     }
                 });
 
-        // Request location updates
         fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
     }
 
-    // Method to focus on a friend's marker by nickname
     private void focusOnFriendMarker(String friendNickname) {
         for (Marker marker : friendsMarkers) {
             if (marker.getTitle().equals(friendNickname)) {
                 Toast.makeText(MapActivity.this, "Focusing on marker: " + friendNickname, Toast.LENGTH_SHORT).show();
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(marker.getPosition(), 17));
-                marker.showInfoWindow(); // Show info window for the marker
+                marker.showInfoWindow();
                 return;
             }
         }
         Toast.makeText(MapActivity.this, "No marker found for: " + friendNickname, Toast.LENGTH_SHORT).show();
     }
 
-    // Method to add friends' markers to the map
     private void addFriendsMarkers() {
         for (UserLocation userLoc : Global.myFriendsLocation) {
             loadFriendIcon(Global.getUserIconUrl(userLoc.getNickName()), userLoc.getLatLng(), userLoc.getNickName());
@@ -489,16 +393,13 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         }
     }
 
-    // Method to update friends' markers on the map
     private void updateFriendsMarkers() {
         for (Marker marker : friendsMarkers) {
             marker.remove();
         }
         friendsMarkers.clear();
 
-        Iterator<UserLocation> iterator = Global.myFriendsLocation.iterator();
-        while (iterator.hasNext()) {
-            UserLocation userLocation = iterator.next();
+        for (UserLocation userLocation : Global.myFriendsLocation) {
             Users friend = findUserByNickname(userLocation.getNickName());
             if (friend != null) {
                 LatLng friendLatLng = new LatLng(Double.parseDouble(userLocation.getLatitude()), Double.parseDouble(userLocation.getLongitude()));
@@ -510,7 +411,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
     private void loadFriendIcon(String url, final LatLng position, final String nickname) {
         if (url == null || url.isEmpty()) {
-            // Use default image if URL is null or empty
             useDefaultImage(position, nickname);
             return;
         }
@@ -532,7 +432,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
 
                     @Override
                     public void onLoadFailed(@Nullable Drawable errorDrawable) {
-                        // Use default image if loading fails
                         useDefaultImage(position, nickname);
                     }
 
@@ -552,7 +451,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         friendsMarkers.add(friendMarker);
     }
 
-
     private Bitmap createCustomMarker(Context context, Bitmap bitmap) {
         View markerLayout = LayoutInflater.from(context).inflate(R.layout.marker_layout, null);
         ImageView markerImage = markerLayout.findViewById(R.id.marker_image);
@@ -568,75 +466,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         return returnedBitmap;
     }
 
-
-    // Method to use the default image
-    private void useDefaultImage(UserLocation userLoc) {
-        Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.user_pic);
-        BitmapDescriptor friendIcon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, 150, 150, false));
-        MarkerOptions mo = new MarkerOptions()
-                .position(userLoc.getLatLng())
-                .title(userLoc.getNickName())
-                .icon(friendIcon);
-        Marker m = mMap.addMarker(mo);
-        Objects.requireNonNull(m).showInfoWindow();
-        friendsMarkers.add(m);
-    }
-    private void addFriendLocationListener() {
-        DatabaseReference friendsRef = FirebaseDatabase.getInstance().getReference("Users")
-                .child(FirebaseAuth.getInstance().getCurrentUser().getUid())
-                .child("friends");
-
-        friendsRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                for (DataSnapshot friendSnapshot : dataSnapshot.getChildren()) {
-                    String friendNickname = friendSnapshot.getValue(String.class);
-                    if (friendNickname != null) {
-                        listenToFriendLocation(friendNickname);
-                    }
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                Log.e(TAG, "Error fetching friends", databaseError.toException());
-            }
-        });
-    }
-    private void listenToFriendLocation(String friendNickname) {
-        DatabaseReference friendLocationRef = FirebaseDatabase.getInstance().getReference("Locations").child(friendNickname);
-        friendLocationRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                UserLocation friendLocation = dataSnapshot.getValue(UserLocation.class);
-                if (friendLocation != null) {
-                    updateFriendMarker(friendLocation);
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                Log.e(TAG, "Error fetching friend's location", databaseError.toException());
-            }
-        });
-    }
-    private void updateFriendMarker(UserLocation friendLocation) {
-        LatLng friendLatLng = new LatLng(Double.parseDouble(friendLocation.getLatitude()), Double.parseDouble(friendLocation.getLongitude()));
-        String profilePictureUrl = Global.getUserIconUrl(friendLocation.getNickName());
-
-        // Remove existing marker for this friend if it exists
-        for (Marker marker : friendsMarkers) {
-            if (marker.getTitle().equals(friendLocation.getNickName())) {
-                marker.remove();
-                friendsMarkers.remove(marker);
-                break;
-            }
-        }
-
-        loadFriendIcon(profilePictureUrl, friendLatLng, friendLocation.getNickName());
-    }
-
-    // Handler for location permission requests
     @RequiresApi(api = Build.VERSION_CODES.S)
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
@@ -650,15 +479,38 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         }
     }
 
-    private void removeFriend(String friendNickname) {
-        Iterator<UserLocation> iterator = Global.myFriendsLocation.iterator();
-        while (iterator.hasNext()) {
-            UserLocation userLoc = iterator.next();
-            if (userLoc.getNickName().equals(friendNickname)) {
-                iterator.remove();
-                break;
+    private void updateFriendMarkersForNicknameChange(String oldNickname, String newNickname) {
+        DatabaseReference friendLocationRef = refLocations.child(oldNickname);
+        friendLocationRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                UserLocation friendLocation = dataSnapshot.getValue(UserLocation.class);
+                if (friendLocation != null) {
+                    // Remove the old marker
+                    for (Iterator<Marker> iterator = friendsMarkers.iterator(); iterator.hasNext(); ) {
+                        Marker marker = iterator.next();
+                        if (marker.getTitle().equals(oldNickname)) {
+                            marker.remove();
+                            iterator.remove();
+                            break;
+                        }
+                    }
+
+                    // Update Firebase with new nickname
+                    refLocations.child(newNickname).setValue(friendLocation).addOnSuccessListener(aVoid -> {
+                        refLocations.child(oldNickname).removeValue();
+                        // Add a new marker with the updated nickname
+                        LatLng position = new LatLng(Double.parseDouble(friendLocation.getLatitude()), Double.parseDouble(friendLocation.getLongitude()));
+                        loadFriendIcon(Global.getUserIconUrl(newNickname), position, newNickname);
+                        Toast.makeText(MapActivity.this, "Nickname and marker updated", Toast.LENGTH_SHORT).show();
+                    }).addOnFailureListener(e -> Toast.makeText(MapActivity.this, "Failed to update new location reference", Toast.LENGTH_SHORT).show());
+                }
             }
-        }
-        updateFriendsMarkers();
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Toast.makeText(MapActivity.this, "Failed to fetch old location data", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 }
