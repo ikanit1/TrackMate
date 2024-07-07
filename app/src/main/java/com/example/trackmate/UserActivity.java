@@ -34,6 +34,7 @@ public class UserActivity extends AppCompatActivity {
     private Button viewLocationButton;
     private DatabaseReference databaseReference;
     private FirebaseAuth auth;
+    private List<String> friendsList;
 
     private TextView userNick;
     private TextView userPhone;
@@ -313,51 +314,27 @@ public class UserActivity extends AppCompatActivity {
             String currentUserId = currentUser.getUid();
             DatabaseReference currentUserRef = databaseReference.child(currentUserId).child("friends");
 
-            currentUserRef.addListenerForSingleValueEvent(new ValueEventListener() {
-                @Override
-                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                    List<String> friendsList = new ArrayList<>();
-                    if (dataSnapshot.exists()) {
-                        for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                            friendsList.add(snapshot.getValue(String.class));
+            currentUserRef.setValue(friendsList).addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    Toast.makeText(UserActivity.this, "Friend removed", Toast.LENGTH_SHORT).show();
+                    addFriendButton.setVisibility(View.VISIBLE);
+                    removeFriendButton.setVisibility(View.GONE);
+                    viewLocationButton.setVisibility(View.GONE);
+
+                    // Remove friend from Global friends list
+                    Iterator<UserLocation> iterator = Global.myFriendsLocation.iterator();
+                    while (iterator.hasNext()) {
+                        UserLocation userLoc = iterator.next();
+                        if (userLoc.getNickName().equals(friendNickname)) {
+                            iterator.remove();
+                            break; // Exit loop after removing friend
                         }
                     }
 
-                    if (friendsList.contains(friendNickname)) {
-                        friendsList.remove(friendNickname);
-
-                        currentUserRef.setValue(friendsList).addOnCompleteListener(task -> {
-                            if (task.isSuccessful()) {
-                                Toast.makeText(UserActivity.this, "Friend removed", Toast.LENGTH_SHORT).show();
-                                addFriendButton.setVisibility(View.VISIBLE);
-                                removeFriendButton.setVisibility(View.GONE);
-                                viewLocationButton.setVisibility(View.GONE);
-
-                                // Remove friend from Global friends list
-                                Iterator<UserLocation> iterator = Global.myFriendsLocation.iterator();
-                                while (iterator.hasNext()) {
-                                    UserLocation userLoc = iterator.next();
-                                    if (userLoc.getNickName().equals(friendNickname)) {
-                                        iterator.remove();
-                                        break; // Exit loop after removing friend
-                                    }
-                                }
-
-                                // Now remove the current user from the friend's friend list
-                                removeCurrentUserFromFriend(friendNickname, currentUserId);
-                            } else {
-                                Toast.makeText(UserActivity.this, "Error removing friend", Toast.LENGTH_SHORT).show();
-                            }
-                        });
-
-                    } else {
-                        Toast.makeText(UserActivity.this, "Friend not found", Toast.LENGTH_SHORT).show();
-                    }
-                }
-
-                @Override
-                public void onCancelled(@NonNull DatabaseError databaseError) {
-                    Log.e("UserActivity", "Error fetching user data", databaseError.toException());
+                    // Now remove the current user from the friend's friend list
+                    removeCurrentUserFromFriend(friendNickname, currentUserId);
+                } else {
+                    Toast.makeText(UserActivity.this, "Error removing friend", Toast.LENGTH_SHORT).show();
                 }
             });
         } else {
