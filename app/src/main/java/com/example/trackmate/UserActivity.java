@@ -314,34 +314,55 @@ public class UserActivity extends AppCompatActivity {
             String currentUserId = currentUser.getUid();
             DatabaseReference currentUserRef = databaseReference.child(currentUserId).child("friends");
 
-            currentUserRef.setValue(friendsList).addOnCompleteListener(task -> {
-                if (task.isSuccessful()) {
-                    Toast.makeText(UserActivity.this, "Friend removed", Toast.LENGTH_SHORT).show();
-                    addFriendButton.setVisibility(View.VISIBLE);
-                    removeFriendButton.setVisibility(View.GONE);
-                    viewLocationButton.setVisibility(View.GONE);
-
-                    // Remove friend from Global friends list
-                    Iterator<UserLocation> iterator = Global.myFriendsLocation.iterator();
-                    while (iterator.hasNext()) {
-                        UserLocation userLoc = iterator.next();
-                        if (userLoc.getNickName().equals(friendNickname)) {
-                            iterator.remove();
-                            break; // Exit loop after removing friend
+            currentUserRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    List<String> currentUserFriendsList = new ArrayList<>();
+                    if (dataSnapshot.exists()) {
+                        for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                            currentUserFriendsList.add(snapshot.getValue(String.class));
                         }
                     }
 
-                    // Now remove the current user from the friend's friend list
-                    removeCurrentUserFromFriend(friendNickname, currentUserId);
-                } else {
-                    Toast.makeText(UserActivity.this, "Error removing friend", Toast.LENGTH_SHORT).show();
+                    if (currentUserFriendsList.contains(friendNickname)) {
+                        currentUserFriendsList.remove(friendNickname);
+                        currentUserRef.setValue(currentUserFriendsList).addOnCompleteListener(task -> {
+                            if (task.isSuccessful()) {
+                                Toast.makeText(UserActivity.this, "Friend removed", Toast.LENGTH_SHORT).show();
+                                addFriendButton.setVisibility(View.VISIBLE);
+                                removeFriendButton.setVisibility(View.GONE);
+                                viewLocationButton.setVisibility(View.GONE);
+
+                                // Remove friend from Global friends list
+                                Iterator<UserLocation> iterator = Global.myFriendsLocation.iterator();
+                                while (iterator.hasNext()) {
+                                    UserLocation userLoc = iterator.next();
+                                    if (userLoc.getNickName().equals(friendNickname)) {
+                                        iterator.remove();
+                                        break; // Exit loop after removing friend
+                                    }
+                                }
+
+                                // Now remove the current user from the friend's friend list
+                                removeCurrentUserFromFriend(friendNickname, currentUserId);
+                            } else {
+                                Toast.makeText(UserActivity.this, "Error removing friend", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    } else {
+                        Toast.makeText(UserActivity.this, "Friend not in the list", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {
+                    Log.e("UserActivity", "Error fetching user data", databaseError.toException());
                 }
             });
         } else {
             Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show();
         }
     }
-
 
     // Remove the current user from the friend's friend list
     private void removeCurrentUserFromFriend(String friendNickname, String currentUserId) {
@@ -356,41 +377,39 @@ public class UserActivity extends AppCompatActivity {
                         friendRef.addListenerForSingleValueEvent(new ValueEventListener() {
                             @Override
                             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                                List<String> friendsList = new ArrayList<>();
+                                List<String> friendFriendsList = new ArrayList<>();
                                 if (dataSnapshot.exists()) {
                                     for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                                        friendsList.add(snapshot.getValue(String.class));
+                                        friendFriendsList.add(snapshot.getValue(String.class));
                                     }
                                 }
 
-                                if (friendsList.contains(currentUserId)) {
-                                    friendsList.remove(currentUserId);
-                                    friendRef.setValue(friendsList).addOnCompleteListener(task -> {
+                                if (friendFriendsList.contains(currentUserId)) {
+                                    friendFriendsList.remove(currentUserId);
+                                    friendRef.setValue(friendFriendsList).addOnCompleteListener(task -> {
                                         if (task.isSuccessful()) {
-                                            Log.d("UserActivity", "Successfully removed current user from friend's friend list");
+                                            Log.d("UserActivity", "Current user removed from friend's friend list");
                                         } else {
                                             Log.e("UserActivity", "Error removing current user from friend's friend list", task.getException());
                                         }
                                     });
-                                } else {
-                                    Log.e("UserActivity", "Current user not found in friend's friend list");
                                 }
                             }
 
                             @Override
                             public void onCancelled(@NonNull DatabaseError databaseError) {
-                                Log.e("UserActivity", "Error fetching friend's data", databaseError.toException());
+                                Log.e("UserActivity", "Error fetching friend data", databaseError.toException());
                             }
                         });
                     }
                 } else {
-                    Log.e("UserActivity", "Friend not found in database");
+                    Log.e("UserActivity", "Friend not found");
                 }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
-                Log.e("UserActivity", "Error fetching friend's data", databaseError.toException());
+                Log.e("UserActivity", "Error fetching friend data", databaseError.toException());
             }
         });
     }
