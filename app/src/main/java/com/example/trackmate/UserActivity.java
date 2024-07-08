@@ -34,7 +34,6 @@ public class UserActivity extends AppCompatActivity {
     private Button viewLocationButton;
     private DatabaseReference databaseReference;
     private FirebaseAuth auth;
-    private List<String> friendsList;
 
     private TextView userNick;
     private TextView userPhone;
@@ -307,7 +306,7 @@ public class UserActivity extends AppCompatActivity {
         return null;
     }
 
-    // Remove friend
+    // // Deleting a friend is not fully implemented
     private void removeFriend(String friendNickname) {
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser != null) {
@@ -413,6 +412,7 @@ public class UserActivity extends AppCompatActivity {
             }
         });
     }
+
 
     // Method to update friends markers on the map
     private void updateMapActivityFriendsMarkers(String friendNickname) {
