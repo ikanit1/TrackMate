@@ -307,6 +307,7 @@ public class UserActivity extends AppCompatActivity {
     }
 
     // // Deleting a friend is not fully implemented
+    // Deleting a friend
     private void removeFriend(String friendNickname) {
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser != null) {
@@ -344,6 +345,9 @@ public class UserActivity extends AppCompatActivity {
 
                                 // Now remove the current user from the friend's friend list
                                 removeCurrentUserFromFriend(friendNickname, currentUserId);
+
+                                // Also remove the friend from the current user's friend list
+                                removeFriendFromCurrentUser(friendNickname, currentUserId);
                             } else {
                                 Toast.makeText(UserActivity.this, "Error removing friend", Toast.LENGTH_SHORT).show();
                             }
@@ -412,6 +416,59 @@ public class UserActivity extends AppCompatActivity {
             }
         });
     }
+
+    // Remove the friend from the current user's friend list
+    private void removeFriendFromCurrentUser(String friendNickname, String currentUserId) {
+        DatabaseReference friendRef = databaseReference.orderByChild("nickname").equalTo(friendNickname).getRef();
+
+        friendRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                        String friendId = snapshot.getKey();
+                        DatabaseReference friendFriendsRef = databaseReference.child(friendId).child("friends");
+
+                        friendFriendsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                            @Override
+                            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                                List<String> friendFriendsList = new ArrayList<>();
+                                if (dataSnapshot.exists()) {
+                                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                                        friendFriendsList.add(snapshot.getValue(String.class));
+                                    }
+                                }
+
+                                if (friendFriendsList.contains(currentUserId)) {
+                                    friendFriendsList.remove(currentUserId);
+                                    friendFriendsRef.setValue(friendFriendsList).addOnCompleteListener(task -> {
+                                        if (task.isSuccessful()) {
+                                            Log.d("UserActivity", "Current user removed from friend's friend list");
+                                        } else {
+                                            Log.e("UserActivity", "Error removing current user from friend's friend list", task.getException());
+                                        }
+                                    });
+                                }
+                            }
+
+                            @Override
+                            public void onCancelled(@NonNull DatabaseError databaseError) {
+                                Log.e("UserActivity", "Error fetching friend data", databaseError.toException());
+                            }
+                        });
+                    }
+                } else {
+                    Log.e("UserActivity", "Friend not found");
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.e("UserActivity", "Error fetching friend data", databaseError.toException());
+            }
+        });
+    }
+
 
 
     // Method to update friends markers on the map
