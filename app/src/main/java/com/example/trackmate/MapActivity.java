@@ -33,7 +33,6 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.lifecycle.ViewModelProvider;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.target.CustomTarget;
@@ -53,6 +52,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -70,7 +70,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
 
 public class MapActivity extends AppCompatActivity implements OnMapReadyCallback {
     private final String TAG = "MapActivity";
@@ -179,6 +178,43 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         };
         IntentFilter filter = new IntentFilter("com.example.trackmate.NICKNAME_UPDATED");
         registerReceiver(nicknameChangeReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+
+        // Add ChildEventListener to refLocations for real-time updates
+        refLocations.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                UserLocation userLocation = snapshot.getValue(UserLocation.class);
+                if (userLocation != null && !userLocation.getNickName().equals(Global.me.getNickname())) {
+                    addOrUpdateFriendMarker(userLocation);
+                }
+            }
+
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                UserLocation userLocation = snapshot.getValue(UserLocation.class);
+                if (userLocation != null && !userLocation.getNickName().equals(Global.me.getNickname())) {
+                    addOrUpdateFriendMarker(userLocation);
+                }
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+                UserLocation userLocation = snapshot.getValue(UserLocation.class);
+                if (userLocation != null && !userLocation.getNickName().equals(Global.me.getNickname())) {
+                    removeFriendMarker(userLocation.getNickName());
+                }
+            }
+
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                // Not needed for this use case
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e(TAG, "Failed to listen for location changes", error.toException());
+            }
+        });
     }
 
     @Override
@@ -346,6 +382,33 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         }
     }
 
+    private void addOrUpdateFriendMarker(UserLocation userLocation) {
+        if (mMap == null) return; // Ensure mMap is not null before proceeding
+
+        LatLng friendLatLng = new LatLng(Double.parseDouble(userLocation.getLatitude()), Double.parseDouble(userLocation.getLongitude()));
+        String nickname = userLocation.getNickName();
+        for (Marker marker : friendsMarkers) {
+            if (marker.getTitle().equals(nickname)) {
+                marker.setPosition(friendLatLng);
+                return;
+            }
+        }
+        loadFriendIcon(Global.getUserIconUrl(nickname), friendLatLng, nickname);
+    }
+
+    private void removeFriendMarker(String nickname) {
+        if (mMap == null) return; // Ensure mMap is not null before proceeding
+
+        for (Iterator<Marker> iterator = friendsMarkers.iterator(); iterator.hasNext(); ) {
+            Marker marker = iterator.next();
+            if (marker.getTitle().equals(nickname)) {
+                marker.remove();
+                iterator.remove();
+                break;
+            }
+        }
+    }
+
     private BitmapDescriptor getUserIcon(String nickname) {
         String iconUrl = Global.getUserIconUrl(nickname);
         if (iconUrl != null && !iconUrl.isEmpty()) {
@@ -410,6 +473,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     }
 
     private void loadFriendIcon(String url, final LatLng position, final String nickname) {
+        if (mMap == null) return; // Ensure mMap is not null before proceeding
+
         if (url == null || url.isEmpty()) {
             useDefaultImage(position, nickname);
             return;
@@ -442,6 +507,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     }
 
     private void useDefaultImage(LatLng position, String nickname) {
+        if (mMap == null) return; // Ensure mMap is not null before proceeding
+
         Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.user_pic);
         BitmapDescriptor friendIcon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, 150, 150, false));
         Marker friendMarker = mMap.addMarker(new MarkerOptions()

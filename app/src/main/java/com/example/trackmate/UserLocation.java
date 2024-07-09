@@ -1,55 +1,56 @@
 package com.example.trackmate;
 
-import android.provider.ContactsContract;
-
 import com.google.android.gms.maps.model.LatLng;
 
 public class UserLocation {
-    private String Latitude;
-    private String Longitude;
-    private String NickName;
+    private String latitude;
+    private String longitude;
+    private String nickName;
 
+    // Default constructor required for calls to DataSnapshot.getValue(UserLocation.class)
     public UserLocation() {
     }
 
     public UserLocation(String latitude, String longitude, String nickName) {
-        Latitude = latitude;
-        Longitude = longitude;
-        NickName = nickName;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.nickName = nickName;
     }
 
     public String getLatitude() {
-        return Latitude;
+        return latitude;
     }
 
     public void setLatitude(String latitude) {
-        Latitude = latitude;
+        this.latitude = latitude;
     }
 
     public String getLongitude() {
-        return Longitude;
+        return longitude;
     }
 
     public void setLongitude(String longitude) {
-        Longitude = longitude;
+        this.longitude = longitude;
     }
 
     public String getNickName() {
-        return NickName;
+        return nickName;
     }
 
     public void setNickName(String nickName) {
-        NickName = nickName;
+        this.nickName = nickName;
     }
 
-    public LatLng getLatLng() { return new LatLng(Double.parseDouble(Latitude), Double.parseDouble(Longitude)); }
+    public LatLng getLatLng() {
+        return new LatLng(Double.parseDouble(latitude), Double.parseDouble(longitude));
+    }
 
     @Override
     public String toString() {
         return "UserLocation{" +
-                "Latitude='" + Latitude + '\'' +
-                ", Longitude='" + Longitude + '\'' +
-                ", Nickname='" + NickName + '\'' +
+                "latitude='" + latitude + '\'' +
+                ", longitude='" + longitude + '\'' +
+                ", nickName='" + nickName + '\'' +
                 '}';
     }
 }
