@@ -71,7 +71,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-public class MapActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
+public class MapActivity extends AppCompatActivity implements OnMapReadyCallback {
     private final String TAG = "MapActivity";
     private DatabaseReference refLocations;
     private ArrayList<Marker> friendsMarkers = new ArrayList<>();
@@ -311,8 +311,6 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         Log.d(TAG, "onMapReady");
         mMap = googleMap;
         mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
-
-        mMap.setOnMarkerClickListener(this); // Set marker click listener
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -581,29 +579,5 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                 Toast.makeText(MapActivity.this, "Failed to fetch old location data", Toast.LENGTH_SHORT).show();
             }
         });
-    }
-
-    @Override
-    public boolean onMarkerClick(@NonNull Marker marker) {
-        if (!marker.getTitle().equals(Global.me.getNickname())) {
-            new AlertDialog.Builder(this)
-                    .setMessage("Are you sure you want to remove this friend marker?")
-                    .setPositiveButton("Yes", (dialog, which) -> {
-                        removeFriendMarker(marker.getTitle());
-                        refLocations.child(marker.getTitle()).removeValue()
-                                .addOnSuccessListener(aVoid -> {
-                                    Toast.makeText(MapActivity.this, "Friend marker removed", Toast.LENGTH_SHORT).show();
-                                })
-                                .addOnFailureListener(e -> {
-                                    Toast.makeText(MapActivity.this, "Failed to remove friend marker from Firebase", Toast.LENGTH_SHORT).show();
-                                });
-                        dialog.dismiss();
-                    })
-                    .setNegativeButton("No", (dialog, which) -> dialog.dismiss())
-                    .create()
-                    .show();
-            return true;
-        }
-        return false;
     }
 }
